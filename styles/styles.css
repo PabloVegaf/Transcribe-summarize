@@ -1,0 +1,8 @@
+/* Import de fuentes */
+@import url("https://fonts.googleapis.com/css2?display=swap&family=Inter:wght@400;500;700;900&family=Noto+Sans:wght@400;500;700;900");
+
+/* Aplicar familia tipográfica global */
+html,
+body {
+  font-family: Inter, "Noto Sans", sans-serif;
+}
