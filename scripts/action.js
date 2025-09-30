@@ -10,8 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const responseDiv = document.getElementById('response');
 
   const pollForResult = (jobId) => {
-    responseDiv.textContent = `Processing (Job ID: ${jobId}). Waiting for server...`;
-
+    responseDiv.textContent = `Transcribing...`;
     const intervalId = setInterval(async () => {
       try {
         console.log(`Polling for job: ${jobId}`);
@@ -29,7 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const debugMessage = `DEBUG INFO: Job Complete. Raw Text: [${transcription}]. Length: ${transcription ? transcription.length : 'N/A'}. Trimmed Length: ${trimmedTranscription.length}.`;
 
           if (trimmedTranscription !== '') {
-            responseDiv.textContent = transcription;
+            const startIndex = transcription.lastIndexOf(']') + 1;
+            const cleanTranscription = transcription.substring(startIndex).trim();
+            responseDiv.textContent = cleanTranscription;
           } else {
             responseDiv.textContent = debugMessage + ' (Result appears to be empty). Please check the generated files in the backend for the transcription.';
           }
@@ -43,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
           console.error('Job failed:', result);
         } else {
           // Still processing, update visual feedback
-          responseDiv.textContent = `Status: ${result.status}... Checking again in 2 seconds.`;
+          responseDiv.textContent = `Transcribing...`;
           console.log('Job status:', result.status);
         }
       } catch (error) {
@@ -69,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('audio', file);
 
-    responseDiv.textContent = 'Uploading and creating job...';
     responseDiv.style.color = '#555';
 
     try {

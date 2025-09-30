@@ -4,6 +4,7 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import cors from 'cors';
 import crypto from 'crypto';
+import path from 'path';
 
 const app = express();
 const port = 3000;
@@ -12,12 +13,18 @@ const port = 3000;
 const jobs: { [key: string]: { status: string; data?: any; error?: any } } = {};
 
 const corsOptions = {
-  origin: ['http://127.0.0.1:5500', 'http://localhost:5500'],
+  origin: '*',
   methods: ['POST', 'GET'],
   allowedHeaders: ['Content-Type'],
 };
 
 app.use(cors(corsOptions));
+
+// Serve static files from the root directory
+app.use(express.static(path.join(__dirname, '../../')));
+app.use('/scripts', express.static(path.join(__dirname, '../../scripts')));
+app.use('/styles', express.static(path.join(__dirname, '../../styles')));
+
 
 // Endpoint to check the status of a job
 app.get('/api/status/:jobId', (req, res) => {
