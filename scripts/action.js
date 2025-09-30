@@ -9,6 +9,52 @@ document.addEventListener('DOMContentLoaded', () => {
   const longSummaryBtn = document.getElementById('longSummaryBtn');
   const responseDiv = document.getElementById('response');
 
+  const pollForResult = (jobId) => {
+    responseDiv.textContent = `Processing (Job ID: ${jobId}). Waiting for server...`;
+
+    const intervalId = setInterval(async () => {
+      try {
+        console.log(`Polling for job: ${jobId}`);
+        const res = await fetch(`http://localhost:3000/api/status/${jobId}`);
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const result = await res.json();
+
+        if (result.status === 'completed') {
+          clearInterval(intervalId);
+          const transcription = result.data.transcription;
+          const trimmedTranscription = transcription ? transcription.trim() : '';
+
+          const debugMessage = `DEBUG INFO: Job Complete. Raw Text: [${transcription}]. Length: ${transcription ? transcription.length : 'N/A'}. Trimmed Length: ${trimmedTranscription.length}.`;
+
+          if (trimmedTranscription !== '') {
+            responseDiv.textContent = transcription;
+          } else {
+            responseDiv.textContent = debugMessage + ' (Result appears to be empty). Please check the generated files in the backend for the transcription.';
+          }
+          responseDiv.style.color = 'black';
+          console.log(debugMessage);
+
+        } else if (result.status === 'failed') {
+          clearInterval(intervalId);
+          responseDiv.textContent = `Transcription failed: ${result.error}`;
+          responseDiv.style.color = 'red';
+          console.error('Job failed:', result);
+        } else {
+          // Still processing, update visual feedback
+          responseDiv.textContent = `Status: ${result.status}... Checking again in 2 seconds.`;
+          console.log('Job status:', result.status);
+        }
+      } catch (error) {
+        clearInterval(intervalId);
+        console.error('Error during polling:', error);
+        responseDiv.textContent = `Polling failed: ${error.message}`;
+        responseDiv.style.color = 'red';
+      }
+    }, 2000); // Poll every 2 seconds
+  };
+
   const handleRequest = async (event) => {
     console.log('handleRequest function called');
     event.preventDefault();
@@ -23,6 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('audio', file);
 
+    responseDiv.textContent = 'Uploading and creating job...';
+    responseDiv.style.color = '#555';
+
     try {
       const res = await fetch('http://localhost:3000/api/transcribe', {
         method: 'POST',
@@ -34,17 +83,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const data = await res.json();
-      console.log('Data received from backend:', data);
-
-      if (data.text) {
-        responseDiv.textContent = data.text;
+      if (data.jobId) {
+        console.log(`Job started with ID: ${data.jobId}`);
+        pollForResult(data.jobId);
       } else {
-        responseDiv.textContent = JSON.stringify(data, null, 2);
+        throw new Error('Did not receive a valid Job ID.');
       }
-      responseDiv.style.color = 'black';
     } catch (error) {
-      console.error('Error in handleRequest:', error);
-      responseDiv.textContent = 'Error processing request. See console for details.';
+      console.error('Error in initial request:', error);
+      responseDiv.textContent = `Error starting transcription: ${error.message}`;
       responseDiv.style.color = 'red';
     }
   };
