@@ -12,7 +12,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 ## 1. Contexto rápido
 
 - **Objetivo**: App web local que transcribe audio con Whisper y, en fases siguientes, generará resúmenes cortos y largos usando modelos locales (Ollama) o APIs (Groq, Gemini, Openrouter...).
-- **Estado actual**: Sólo transcripción local con Whisper a través del backend Node/Express. Botones de resumen aún no diferenciados.
+- **Estado actual**: Transcripción local con Whisper y resumen corto orquestado desde el backend utilizando LM Studio (vía API OpenAI-compatible). El flujo funciona; el prompt del sistema aún debe pulirse para obtener resúmenes más consistentes.
 - **Stack**:
   - Frontend: HTML + Tailwind vía CDN + JS vanilla.
   - Backend: Node.js + Express + TypeScript + Multer.
@@ -33,14 +33,16 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Backend | Servir UI, aceptar uploads, lanzar Whisper, exponer estado | `backend/src/index.ts`, `backend/package.json`, `backend/tsconfig.json` |
 | Almacenamiento temporal | Ficheros subidos + jobs en memoria | `uploads/`, objeto `jobs` en memoria |
 
-### Flujo actual (transcripción)
-1. Usuario selecciona audio y pulsa cualquier botón.
-2. `scripts/action.js` sube el archivo a `POST /api/transcribe` (campo `audio`).
+### Flujo actual (transcripción y resumen)
+1. Usuario selecciona audio y pulsa un botón (`transcribe`, `shortSummaryBtn`, etc.).
+2. `scripts/action.js` sube el archivo a `POST /api/transcribe?action=<tipo>` donde `tipo` puede ser `transcribe` o `summarize_short`.
 3. Backend responde `{ jobId }` y ejecuta `whisper <file>` asíncronamente.
-4. Frontend hace polling a `GET /api/status/:jobId` cada 2 s.
-5. Cuando `status === 'completed'`, muestra `data.transcription`.
+4. El backend almacena la transcripción en memoria; si la acción es `summarize_short`, genera el resumen con LM Studio antes de marcar el job como completado.
+5. Frontend hace polling a `GET /api/status/:jobId` cada 2 s.
+6. Cuando `status === 'completed'`, muestra el resultado: `data.summary` si existe, o `data.transcription` en caso contrario.
 
 ### Flujo objetivo (próximas fases)
+- Implementar la lógica para el resumen largo (`summarize_long`).
 - Elegir motor (local/API) y acción (transcribir, resumen corto, resumen largo) desde el frontend.
 - Backend delega en Whisper/Ollama o Groq/Gemini según configuración.
 - Posibilidad de instalar modelos locales desde UI (e.g., `ollama pull`).
@@ -55,12 +57,14 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Uploads | `multer` guarda archivos en `uploads/`; se eliminan tras terminar el job. |
 | Jobs | `jobs[jobId] = { status, data?, error? }`. No hay persistencia; reiniciar el servidor limpia todo. |
 | Whisper | Se ejecuta vía `exec` activando venv: `source /home/pablo/IA/whisper_env/bin/activate && whisper ... --model tiny`. Ajusta ruta si tu entorno difiere. |
-| Sanitizado actual | Se fusionan `stdout` y `stderr`, se filtran líneas `[hh:mm → hh:mm]` y se concatena el texto posterior. |
+| Sanitizado actual | Se usa `stdout.trim()` (eliminación básica de espacios); ajusta si necesitas limpiar metadatos adicionales. |
+| Acciones | `POST /api/transcribe` lee `action` desde la query (`transcribe` o `summarize_short`), genera el resumen corto si aplica y guarda `{ action, transcription, summary? }` en `jobs[jobId].data`. Ajusta el prompt en `generateShortSummary` si el output del LLM añade comentarios o no resume adecuadamente. |
 | CORS | Permitidos orígenes `http://127.0.0.1:5500` y `http://localhost:5500`. Actualiza si usas otro host. |
 | Archivos estáticos | Servidos desde raíz, `/scripts` y `/styles`. |
 
 ⚠️ **Limitaciones**:
-- No existen endpoints diferenciados para resumen.
+- Sólo se soporta el resumen corto; el botón de resumen largo aún no tiene implementación.
+- El prompt actual del resumen corto puede generar textos demasiado literales o con explicaciones extra.
 - El almacenamiento en memoria impide escalado o reintentos tras un reinicio.
 - Sin validación de formato/tamaño de audio.
 
@@ -68,19 +72,21 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 
 ## 4. Frontend detallado
 
-- `index.html`: interfaz principal con tres botones (`transcribeBtn`, `shortSummaryBtn`, `longSummaryBtn`). Todos invocan la misma función `handleRequest`.
+- `index.html`: interfaz principal con tres botones (`transcribeBtn`, `shortSummaryBtn`, `longSummaryBtn`).
 - `scripts/action.js`:
-  - Envía `FormData` con el archivo.
-  - Polling de estado cada 2 segundos mediante `fetch`.
-  - Muestra transcripción en `#response`.
+  - `handleRequest` acepta un parámetro `action` y lo añade como querystring en la petición a `/api/transcribe`.
+  - Tras recibir el `jobId`, realiza polling cada 2 s hasta completar.
+  - Cuando llega la respuesta, muestra `result.data.summary` (si existe) o la transcripción limpia en `#response`.
+  - Ya no se realizan peticiones adicionales al backend para el resumen corto; cualquier ajuste del prompt se refleja automáticamente en la respuesta mostrada.
 - `settings.html` + `scripts/settings.js`:
   - Formulario para guardar en `localStorage` las API keys de Groq y Google.
   - Toggle para mostrar/ocultar contenidos sensibles.
 - `styles/styles.css`: actualmente sólo define tipografía global (Inter y Noto Sans); la mayoría de estilos llegan desde Tailwind.
 
 🎯 **Oportunidades inmediatas**:
-- Diferenciar acciones en `handleRequest` (añadir query param o campo `action`).
-- Mostrar feedback según `status` (procesando, error, etc.).
+- Afinar el prompt del resumen corto y validar la salida con varios audios.
+- Implementar la lógica para `summarize_long` reutilizando el mecanismo de acciones.
+- Mostrar feedback diferenciado (progreso de transcripción vs. resumen) y logs de errores más descriptivos en la UI.
 - Validar tamaño/tipo antes de subir.
 
 ---
@@ -90,7 +96,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Herramienta | Uso actual | Estado |
 |-------------|-----------|--------|
 | Whisper CLI | Transcripción local | ✅ En uso (modelo `tiny`). |
-| Ollama | Resúmenes locales | ⏳ Planificado. |
+| LM Studio | Resúmenes locales | ✅ En uso para resumen corto. |
 | Groq Whisper API | Transcripción remota | ⏳ Planificado. |
 | Google Gemini 2.5 Flash Lite | Resúmenes remotos | ⏳ Planificado. |
 
@@ -124,7 +130,7 @@ npm run dev --prefix backend
 | Feature | Estado | Notas |
 |---------|--------|-------|
 | Transcripción local | ✅ | Funciona con Whisper tiny. |
-| Resumen corto / largo | ⏳ | UI lista, falta lógica frontend/backend. |
+| Resumen corto / largo | 🟡 | Resumen corto integrado en `/api/transcribe`; el prompt requiere afinación. Resumen largo pendiente. |
 | Motores externos (Groq/Gemini) | ⏳ | Añadir configuración y llamadas API. |
 | Selector de motor | ⏳ | Usar configuración guardada en `settings.html`. |
 | Instalación automática de modelos | ⏳ | Endpoint para ejecutar comandos (`ollama pull`). |
@@ -132,11 +138,12 @@ npm run dev --prefix backend
 | Tests / lint | ❌ | Scripts placeholder; definir convenciones. |
 
 **Próximos pasos sugeridos**:
-1. Propagar el tipo de acción desde `action.js` al backend.
-2. Separar la lógica de transcripción local vs. remota en `backend/src/index.ts`.
-3. Implementar resúmenes locales con Ollama (prompt definido aquí mismo).
-4. Añadir soporte para Groq/Gemini aprovechando las keys de `settings.html`.
-5. Documentar cada nueva integración en este archivo (sección 7/8) y en `README.md` si impacta al usuario final.
+1. Afinar y probar el prompt de `generateShortSummary` para obtener resúmenes consistentes y sin comentarios meta.
+2. Implementar la lógica para `summarize_long` en el backend.
+3. Separar la lógica de transcripción local vs. remota en `backend/src/index.ts`.
+4. Implementar resúmenes locales con Ollama (prompt definido aquí mismo).
+5. Añadir soporte para Groq/Gemini aprovechando las keys de `settings.html`.
+6. Documentar cada nueva integración en este archivo (sección 7/8) y en `README.md` si impacta al usuario final.
 
 ---
 
@@ -165,9 +172,13 @@ npm run dev --prefix backend
 ## 9. Prompts & plantillas útiles
 
 - **Resumen corto (sugerido)**:
-  > "Resume el siguiente texto en 3-4 frases destacando ideas clave: \n\n{{transcripcion}}"
+  > "Resume el siguiente texto en 3-4 frases destacando ideas clave: 
+
+{{transcripcion}}"
 - **Resumen largo (sugerido)**:
-  > "Elabora un resumen detallado del siguiente contenido, incluyendo contexto, puntos principales y conclusiones: \n\n{{transcripcion}}"
+  > "Elabora un resumen detallado del siguiente contenido, incluyendo contexto, puntos principales y conclusiones: 
+
+{{transcripcion}}"
 - **Mensaje de fallback para UI**: "Transcripción vacía." (ya implementado cuando no se detectan líneas válidas).
 
 Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí.
@@ -197,8 +208,8 @@ Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí
 ### Resumen para agentes con prisa
 
 1. Transcripción local funciona; no rompas ese flujo.
-2. Frontend todavía no diferencia acciones: deberás extenderlo.
-3. Backend ejecuta Whisper en venv fijo; ajusta si cambias ruta.
+2. Frontend ahora diferencia acciones (`transcribe`, `summarize_short`).
+3. Backend ejecuta Whisper y opcionalmente resume con LM Studio.
 4. Guarda cambios de arquitectura aquí mismo.
 5. Toda nueva funcionalidad debe incluir instrucciones de prueba.
 
