@@ -1,6 +1,6 @@
 <!--
-  Supernova.md — Guía maestra para agentes de IA en el proyecto Transcribe-summarize
-  Última actualización: 3-oct-2025
+   Supernova.md — Guía maestra para agentes de IA en el proyecto Transcribe-summarize
+   Última actualización: 3-oct-2025 (revisión de código completada)
 -->
 
 # Guía Supernova 🚀
@@ -196,6 +196,30 @@ Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí
 - Si este archivo crece demasiado, crea sub-secciones enlazadas pero mantén aquí la visión global.
 
 ---
+
+## 12. Revisión de código y hallazgos (2025-10-03)
+
+### Hallazgos principales
+- **Vulnerabilidades**: Ninguna detectada en dependencias (npm audit: 0 vulnerabilidades).
+- **Backend**:
+  - CORS configurado con `origin: '*'`, lo cual permite cualquier origen. Recomendación: restringir a `['http://127.0.0.1:3000', 'http://localhost:3000']` para mayor seguridad.
+  - Código duplicado en `generateShortSummary` y `generateLongSummary` para procesar respuestas de OpenAI. Recomendación: extraer función común `processOpenAIResponse`.
+  - Typo en prompt de resumen largo: "estenxor" debería ser "extenso".
+  - Falta validación de tamaño/tipo de archivo en Multer. Recomendación: añadir límites (e.g., `limits: { fileSize: 100 * 1024 * 1024 }` para 100MB).
+  - Console.logs presentes; en producción, considerar usar un logger o removerlos.
+- **Frontend**:
+  - Código limpio, sin issues de seguridad evidentes.
+  - Console.logs para debug; remover en producción.
+- **Configuraciones**: Coherentes, versiones actualizadas.
+- **Incoherencias**: Documento menciona CORS restringido, pero código usa '*'. Actualizar código para coincidir con doc.
+
+### Recomendaciones
+- Implementar validación de archivos en backend.
+- Refactorizar funciones de resumen para eliminar duplicación.
+- Corregir typo en prompt.
+- Restringir CORS.
+- Añadir logging estructurado si se expande.
+- Considerar tests unitarios para funciones críticas.
 
 ### Resumen para agentes con prisa
 
