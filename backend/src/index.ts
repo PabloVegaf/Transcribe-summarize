@@ -49,7 +49,7 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
   }
 
   const actionParam = typeof req.query.action === 'string' ? req.query.action : undefined;
-  const action = actionParam === 'summarize_short' ? actionParam : 'transcribe';
+  const action = actionParam === 'summarize_short' || actionParam === 'summarize_long' ? actionParam : 'transcribe';
 
   const jobId = crypto.randomBytes(16).toString('hex');
   jobs[jobId] = { status: 'processing', data: { action } };
@@ -101,6 +101,27 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
                 : 'Error generating summary.',
           };
         }
+      } else if (action === 'summarize_long') {
+        try {
+          const summary = await generateLongSummary(cleanTranscription);
+          jobs[jobId] = {
+            status: 'completed',
+            data: {
+              action,
+              transcription: cleanTranscription,
+              summary,
+            },
+          };
+        } catch (summaryError) {
+          console.error(`[${jobId}] Error generating summary:`, summaryError);
+          jobs[jobId] = {
+            status: 'failed',
+            error:
+              summaryError instanceof Error
+                ? summaryError.message
+                : 'Error generating summary.',
+          };
+        }
       } else {
         jobs[jobId] = {
           status: 'completed',
@@ -116,13 +137,62 @@ const lmstudio = new OpenAI({
   apiKey: 'not-needed', // Necesaria si se usara una api externa
 });
 
+  const llm = "qwen/qwen3-4b-2507";
+  
 async function generateShortSummary(transcription: string): Promise<string> {
   try {
     const systemPrompt =
-      'Eres un experto en resumir textos. Proporciona un resumen breve y conciso de la siguiente transcripción. El resumen debe ser un solo párrafo. y no digas nada por tu parte. Únicamente un resumen y de qué trata.';
-
+      'Tu tarea es crear un resumen muy breve, en un solo párrafo, del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe capturar la idea principal del audio de forma concisa.';
     const response = await lmstudio.chat.completions.create({
-      model: 'qwen/qwen3-4b-2507',
+      model: llm,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: transcription },
+      ],
+      temperature: 0.7,
+    });
+
+    
+
+    const message = response.choices?.[0]?.message;
+    const rawContent = message?.content;
+
+    let summaryText: string | undefined;
+
+    if (typeof rawContent === 'string') {
+      summaryText = rawContent.trim();
+    } else if (Array.isArray(rawContent)) {
+      const arrayContent = rawContent as Array<unknown>;
+      summaryText = arrayContent
+        .map((part: unknown) => {
+          if (typeof part === 'string') {
+            return part;
+          }
+          if (part && typeof part === 'object' && 'text' in part) {
+            const textValue = (part as { text?: unknown }).text;
+            return typeof textValue === 'string' ? textValue : '';
+          }
+          return '';
+        })
+        .join('')
+        .trim();
+    }
+
+    return summaryText && summaryText.length > 0
+      ? summaryText
+      : 'Resumen no disponible.'; // Devuelve solo el contenido del mensaje, si no recibe nada, lo indica.
+  } catch (error) {
+    console.error('Error connecting to LM Studio:', error);
+    throw new Error('Error generating summary.');
+  }
+}
+
+async function generateLongSummary(transcription: string): Promise<string> {
+  try {
+    const systemPrompt =
+      'Tu tarea es crear un resumen más extenso y detallado del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe ser profundo, capturando no solo los puntos principales sino también los matices, ideas secundarias y conexiones entre conceptos. Escribe el resumen como un texto continuo coherente, sin títulos ni puntos de lista, desarrollando cada aspecto importante del contenido en párrafos estructurados que mantengan el flujo lógico del tema tratado. Haz el resumen en español y si es muy estenxor, divídelo en varios párrafos para mejorar la legibilidad.';
+    const response = await lmstudio.chat.completions.create({
+      model: llm,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: transcription },

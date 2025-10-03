@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const responseDiv = document.getElementById('response');
 
   const pollForResult = (jobId, action) => {
-    const isSummary = action === 'summarize_short';
+    const isSummary = action === 'summarize_short' || action === 'summarize_long';
     const statusMessage = isSummary ? 'Transcribing and summarizing...' : 'Transcribing...';
     responseDiv.textContent = statusMessage;
 
