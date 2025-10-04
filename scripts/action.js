@@ -1,99 +1,111 @@
 console.log('action.js script loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('DOM fully loaded and parsed');
+    console.log('DOM fully loaded and parsed');
 
-  const audioFile = document.getElementById('audioFile');
-  const transcribeBtn = document.getElementById('transcribeBtn');
-  const shortSummaryBtn = document.getElementById('shortSummaryBtn');
-  const longSummaryBtn = document.getElementById('longSummaryBtn');
-  const responseDiv = document.getElementById('response');
+    const audioFile = document.getElementById('audioFile');
+    const transcribeBtn = document.getElementById('transcribeBtn');
+    const shortSummaryBtn = document.getElementById('shortSummaryBtn');
+    const longSummaryBtn = document.getElementById('longSummaryBtn');
+    const responseDiv = document.getElementById('response');
 
-  const pollForResult = (jobId, action) => {
-    const isSummary = action === 'summarize_short' || action === 'summarize_long';
-    const statusMessage = isSummary ? 'Transcribing and summarizing...' : 'Transcribing...';
-    responseDiv.textContent = statusMessage;
+    const setButtonsDisabled = (disabled) => {
+        if (transcribeBtn) transcribeBtn.disabled = disabled;
+        if (shortSummaryBtn) shortSummaryBtn.disabled = disabled;
+        if (longSummaryBtn) longSummaryBtn.disabled = disabled;
+    };
 
-    const intervalId = setInterval(async () => {
-      try {
-        const res = await fetch(`http://localhost:3000/api/status/${jobId}`);
-        if (!res.ok) throw new Error(`Polling failed: ${res.statusText}`);
-        const result = await res.json();
+    const pollForResult = (jobId, action) => {
+        const isSummary = action === 'summarize_short' || action === 'summarize_long';
+        const statusMessage = isSummary ? 'Transcribing and summarizing...' : 'Transcribing...';
+        responseDiv.textContent = statusMessage;
 
-        if (result.status === 'completed') {
-          clearInterval(intervalId);
-          const rawTranscription = result.data?.transcription || '';
-          const cleanTranscription = rawTranscription.replace(/\([^\)]+\)/g, '').trim();
+        const intervalId = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/status/${jobId}`);
+                if (!res.ok) throw new Error(`Polling failed: ${res.statusText}`);
+                const result = await res.json();
 
-          if (isSummary) {
-            const summary = (result.data && result.data.summary) || 'Resumen no disponible.';
-            responseDiv.textContent = summary;
-          } else {
-            responseDiv.textContent = cleanTranscription;
-          }
-          responseDiv.style.color = 'black';
+                if (result.status === 'completed') {
+                    clearInterval(intervalId);
+                    setButtonsDisabled(false);
+                    const rawTranscription = result.data?.transcription || '';
+                    const cleanTranscription = rawTranscription.replace(/\([^\)]+\)/g, '').trim();
 
-        } else if (result.status === 'failed') {
-          clearInterval(intervalId);
-          const errorMessage = result.error || 'Processing failed.';
-          responseDiv.textContent = `Transcription failed: ${errorMessage}`;
-          responseDiv.style.color = 'red';
-        } else {
-          responseDiv.textContent = statusMessage; // Keep showing processing message
+                    if (isSummary) {
+                        const summary = (result.data && result.data.summary) || 'Resumen no disponible.';
+                        responseDiv.textContent = summary;
+                    } else {
+                        responseDiv.textContent = cleanTranscription;
+                    }
+                    responseDiv.style.color = 'black';
+
+                } else if (result.status === 'failed') {
+                    clearInterval(intervalId);
+                    setButtonsDisabled(false);
+                    const errorMessage = result.error || 'Processing failed.';
+                    responseDiv.textContent = `Transcription failed: ${errorMessage}`;
+                    responseDiv.style.color = 'red';
+                } else {
+                    responseDiv.textContent = statusMessage; // Keep showing processing message
+                }
+            } catch (error) {
+                clearInterval(intervalId);
+                setButtonsDisabled(false);
+                console.error('Error during polling:', error);
+                responseDiv.textContent = `Error: ${error.message}`;
+                responseDiv.style.color = 'red';
+            }
+        }, 2000);
+    };
+
+    const handleRequest = async (action) => {
+        const file = audioFile.files[0];
+        if (!file) {
+            responseDiv.textContent = 'Please select an audio file.';
+            responseDiv.style.color = 'red';
+            return;
         }
-      } catch (error) {
-        clearInterval(intervalId);
-        console.error('Error during polling:', error);
-        responseDiv.textContent = `Error: ${error.message}`;
-        responseDiv.style.color = 'red';
-      }
-    }, 2000);
-  };
 
-  const handleRequest = async (action) => {
-    const file = audioFile.files[0];
-    if (!file) {
-      responseDiv.textContent = 'Please select an audio file.';
-      responseDiv.style.color = 'red';
-      return;
+        setButtonsDisabled(true);
+
+        const formData = new FormData();
+        formData.append('audio', file);
+
+        responseDiv.style.color = '#555';
+
+        try {
+            const url = new URL('/api/transcribe', window.location.origin);
+            url.searchParams.set('action', action);
+
+            const res = await fetch(url, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!res.ok) throw new Error(`Transcription request failed: ${res.statusText}`);
+
+            const data = await res.json();
+            if (data.jobId) {
+                pollForResult(data.jobId, action);
+            } else {
+                throw new Error('Did not receive a valid Job ID.');
+            }
+        } catch (error) {
+            setButtonsDisabled(false);
+            console.error('Error in initial request:', error);
+            responseDiv.textContent = `Error: ${error.message}`;
+            responseDiv.style.color = 'red';
+        }
+    };
+
+    if (transcribeBtn) {
+        transcribeBtn.addEventListener('click', () => handleRequest('transcribe'));
     }
-
-    const formData = new FormData();
-    formData.append('audio', file);
-
-    responseDiv.style.color = '#555';
-
-    try {
-      const url = new URL('http://localhost:3000/api/transcribe');
-      url.searchParams.set('action', action);
-
-      const res = await fetch(url, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) throw new Error(`Transcription request failed: ${res.statusText}`);
-
-      const data = await res.json();
-      if (data.jobId) {
-        pollForResult(data.jobId, action);
-      } else {
-        throw new Error('Did not receive a valid Job ID.');
-      }
-    } catch (error) {
-      console.error('Error in initial request:', error);
-      responseDiv.textContent = `Error: ${error.message}`;
-      responseDiv.style.color = 'red';
+    if (shortSummaryBtn) {
+        shortSummaryBtn.addEventListener('click', () => handleRequest('summarize_short'));
     }
-  };
-
-  if (transcribeBtn) {
-    transcribeBtn.addEventListener('click', () => handleRequest('transcribe'));
-  }
-  if (shortSummaryBtn) {
-    shortSummaryBtn.addEventListener('click', () => handleRequest('summarize_short'));
-  }
-  if (longSummaryBtn) {
-    longSummaryBtn.addEventListener('click', () => handleRequest('summarize_long'));
-  }
+    if (longSummaryBtn) {
+        longSummaryBtn.addEventListener('click', () => handleRequest('summarize_long'));
+    }
 });

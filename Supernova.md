@@ -1,6 +1,6 @@
 <!--
    Supernova.md — Guía maestra para agentes de IA en el proyecto Transcribe-summarize
-   Última actualización: 3-oct-2025 (revisión de código completada)
+   Última actualización: 4-oct-2025 (refactorización y mejoras implementadas)
 -->
 
 # Guía Supernova 🚀
@@ -16,7 +16,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 - **Stack**:
   - Frontend: HTML + Tailwind vía CDN + JS vanilla.
   - Backend: Node.js + Express + TypeScript + Multer.
-  - Procesamiento: Whisper CLI dentro de venv (`/home/pablo/IA/whisper_env`).
+  - Procesamiento: Whisper CLI.
 - **Puerto**: 3000 (`backend/src/index.ts`).
 - **Repositorio**: `Transcribe-summarize` (rama principal `main`).
 
@@ -53,18 +53,17 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Tema | Detalle |
 |------|---------|
 | Servidor | Express; arranca con `npm run dev --prefix backend` (usa `ts-node-dev`). |
-| Uploads | `multer` guarda archivos en `uploads/`; se eliminan tras terminar el job. |
+| Uploads | `multer` guarda archivos en `uploads/`. Se ha añadido validación para aceptar solo archivos de audio (mpeg, wav, ogg, mp4, webm) y un límite de tamaño de 100MB. |
 | Jobs | `jobs[jobId] = { status, data?, error? }`. No hay persistencia; reiniciar el servidor limpia todo. |
-| Whisper | Se ejecuta vía `exec` activando venv: `source /home/pablo/IA/whisper_env/bin/activate && whisper ... --model tiny`. Ajusta ruta si tu entorno difiere. |
+| Whisper | Se ejecuta vía `exec` con el comando `whisper <filepath> --model tiny`. Se asume que `whisper` está en el PATH del sistema. |
 | Sanitizado actual | Se usa `stdout.trim()` (eliminación básica de espacios); ajusta si necesitas limpiar metadatos adicionales. |
-| Acciones | `POST /api/transcribe` lee `action` desde la query (`transcribe`, `summarize_short`, `summarize_long`), genera el resumen correspondiente si aplica y guarda `{ action, transcription, summary? }` en `jobs[jobId].data`. Ajusta el prompt en `generateShortSummary` o `generateLongSummary` si el output del LLM añade comentarios o no resume adecuadamente. |
-| CORS | Permitidos orígenes `http://127.0.0.1:3000` y `http://localhost:3000`. Actualiza si usas otro host. |
+| Acciones | `POST /api/transcribe` lee `action` desde la query (`transcribe`, `summarize_short`, `summarize_long`). La lógica de resumen se ha refactorizado en una única función `generateSummary`. |
+| CORS | Restringido a `http://127.0.0.1:3000` y `http://localhost:3000` para mayor seguridad. |
 | Archivos estáticos | Servidos desde raíz, `/scripts` y `/styles`. |
 
 ⚠️ **Limitaciones**:
 - El prompt actual del resumen corto puede generar textos demasiado literales o con explicaciones extra.
 - El almacenamiento en memoria impide escalado o reintentos tras un reinicio.
-- Sin validación de formato/tamaño de audio.
 
 ---
 
@@ -72,6 +71,8 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 
 - `index.html`: interfaz principal con tres botones (`transcribeBtn`, `shortSummaryBtn`, `longSummaryBtn`).
 - `scripts/action.js`:
+  - Utiliza URLs relativas para las llamadas a la API, mejorando la portabilidad.
+  - Deshabilita los botones de acción mientras una petición está en proceso para evitar envíos múltiples.
   - `handleRequest` acepta un parámetro `action` y lo añade como querystring en la petición a `/api/transcribe`.
   - Tras recibir el `jobId`, realiza polling cada 2 s hasta completar.
   - La variable `isSummary` ahora reconoce tanto `summarize_short` como `summarize_long` para mostrar el estado correcto.
@@ -84,7 +85,6 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 🎯 **Oportunidades inmediatas**:
 - Afinar el prompt del resumen corto y validar la salida con varios audios.
 - Mostrar feedback diferenciado (progreso de transcripción vs. resumen) y logs de errores más descriptivos en la UI.
-- Validar tamaño/tipo antes de subir.
 
 ---
 
@@ -117,7 +117,7 @@ npm run dev --prefix backend
 
 **Requisitos previos**:
 - Node.js instalado.
-- Python venv con Whisper disponible en `/home/pablo/IA/whisper_env`. Si usas otra ruta, actualiza `backend/src/index.ts`.
+- Whisper CLI instalado y disponible en el PATH del sistema.
 - Directorio `uploads/` con permisos de escritura (Multer lo crea automáticamente, pero revisa permisos en despliegues).
 
 ---
@@ -131,7 +131,7 @@ npm run dev --prefix backend
 | Motores externos (Groq/Gemini) | ⏳ | Añadir configuración y llamadas API. |
 | Selector de motor | ⏳ | Usar configuración guardada en `settings.html`. |
 | Instalación automática de modelos | ⏳ | Endpoint para ejecutar comandos (`ollama pull`). |
-| Validación de audio | ❌ | Añadir filtros en Multer + frontend. |
+| Validación de audio | ✅ | Añadidos filtros en Multer para tipo de archivo y tamaño máximo (100MB). |
 | Tests / lint | ❌ | Scripts placeholder; definir convenciones. |
 
 **Próximos pasos sugeridos**:
@@ -170,7 +170,7 @@ npm run dev --prefix backend
 - **Resumen corto (actual)**:
   > "Tu tarea es crear un resumen muy breve, en un solo párrafo, del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe capturar la idea principal del audio de forma concisa."
 - **Resumen largo (actual)**:
-  > "Tu tarea es crear un resumen más extenso y detallado del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe ser profundo, capturando no solo los puntos principales sino también los matices, ideas secundarias y conexiones entre conceptos. Escribe el resumen como un texto continuo coherente, sin títulos ni puntos de lista, desarrollando cada aspecto importante del contenido en párrafos estructurados que mantengan el flujo lógico del tema tratado. Haz el resumen en español y si es muy estenxor, divídelo en varios párrafos para mejorar la legibilidad."
+  > "Tu tarea es crear un resumen más extenso y detallado del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe ser profundo, capturando no solo los puntos principales sino también los matices, ideas secundarias y conexiones entre conceptos. Escribe el resumen como un texto continuo coherente, sin títulos ni puntos de lista, desarrollando cada aspecto importante del contenido en párrafos estructurados que mantengan el flujo lógico del tema tratado. Haz el resumen en español y si es muy extenso, divídelo en varios párrafos para mejorar la legibilidad."
 - **Mensaje de fallback para UI**: "Transcripción vacía." (ya implementado cuando no se detectan líneas válidas).
 
 Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí.
@@ -182,7 +182,7 @@ Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí
 | Problema | Causa probable | Qué hacer |
 |----------|----------------|-----------|
 | Respuesta vacía | Whisper escribe en `stderr` | Verifica logs del backend; el sanitizado ya combina ambos streams. |
-| `whisper` no encontrado | Ruta del venv incorrecta | Actualiza la cadena del comando o instala el venv. |
+| `whisper` no encontrado | Whisper CLI no está en el PATH | Asegúrate de que Whisper esté instalado y accesible desde el terminal. |
 | CORS bloquea peticiones | Host distinto a 127.0.0.1/localhost | Añade el nuevo origen en `corsOptions`. |
 | Jobs desaparecen | Reinicio del servidor | Implementa persistencia si necesitas conservar estados. |
 | Archivos quedan en `uploads/` | Fallo antes de `fs.unlink` | Revisa logs y añade manejo en casos de error temprano. |
@@ -197,29 +197,33 @@ Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí
 
 ---
 
-## 12. Revisión de código y hallazgos (2025-10-03)
+## 12. Revisión de código y mejoras (2025-10-04)
 
-### Hallazgos principales
+### Resumen de cambios implementados
+- **Seguridad**: Se restringió la política de CORS para permitir únicamente los orígenes `http://127.0.0.1:3000` y `http://localhost:3000`, mitigando riesgos de seguridad.
+- **Refactorización del backend**:
+  - Se unificaron las funciones `generateShortSummary` y `generateLongSummary` en una sola (`generateSummary`), eliminando código duplicado.
+  - Se corrigió el typo "estenxor" a "extenso" en el prompt de resumen largo.
+  - Se generalizó el comando de `whisper` para no depender de una ruta de venv específica, mejorando la portabilidad.
+- **Validación de archivos**: Se añadió validación en Multer para limitar el tamaño de los archivos a 100MB y restringir los tipos de archivo a formatos de audio comunes.
+- **Mejoras de frontend**:
+  - Se actualizaron las llamadas a la API para usar URLs relativas, permitiendo que la aplicación funcione correctamente en diferentes dominios.
+  - Se implementó una mejora de UX que deshabilita los botones de acción durante el procesamiento para evitar envíos duplicados.
+
+### Hallazgos de la revisión original (2025-10-03)
 - **Vulnerabilidades**: Ninguna detectada en dependencias (npm audit: 0 vulnerabilidades).
 - **Backend**:
-  - CORS configurado con `origin: '*'`, lo cual permite cualquier origen. Recomendación: restringir a `['http://127.0.0.1:3000', 'http://localhost:3000']` para mayor seguridad.
-  - Código duplicado en `generateShortSummary` y `generateLongSummary` para procesar respuestas de OpenAI. Recomendación: extraer función común `processOpenAIResponse`.
-  - Typo en prompt de resumen largo: "estenxor" debería ser "extenso".
-  - Falta validación de tamaño/tipo de archivo en Multer. Recomendación: añadir límites (e.g., `limits: { fileSize: 100 * 1024 * 1024 }` para 100MB).
+  - **[Solucionado]** CORS configurado con `origin: '*'`.
+  - **[Solucionado]** Código duplicado en `generateShortSummary` y `generateLongSummary`.
+  - **[Solucionado]** Typo en prompt de resumen largo: "estenxor".
+  - **[Solucionado]** Falta validación de tamaño/tipo de archivo en Multer.
   - Console.logs presentes; en producción, considerar usar un logger o removerlos.
 - **Frontend**:
   - Código limpio, sin issues de seguridad evidentes.
   - Console.logs para debug; remover en producción.
 - **Configuraciones**: Coherentes, versiones actualizadas.
-- **Incoherencias**: Documento menciona CORS restringido, pero código usa '*'. Actualizar código para coincidir con doc.
-
-### Recomendaciones
-- Implementar validación de archivos en backend.
-- Refactorizar funciones de resumen para eliminar duplicación.
-- Corregir typo en prompt.
-- Restringir CORS.
-- Añadir logging estructurado si se expande.
-- Considerar tests unitarios para funciones críticas.
+- **Incoherencias**:
+  - **[Solucionado]** Documento mencionaba CORS restringido, pero código usaba '*'.
 
 ### Resumen para agentes con prisa
 
