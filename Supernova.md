@@ -1,6 +1,6 @@
 <!--
    Supernova.md — Guía maestra para agentes de IA en el proyecto Transcribe-summarize
-   Última actualización: 3-oct-2025 (revisión de código completada)
+   Última actualización: 4-oct-2025 (Refactorización a API de OpenAI)
 -->
 
 # Guía Supernova 🚀
@@ -11,16 +11,16 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 
 ## 1. Contexto rápido
 
-- **Objetivo**: App web local que transcribe audio con Whisper y, en fases siguientes, generará resúmenes cortos y largos usando modelos locales (Ollama) o APIs (Groq, Gemini, Openrouter...).
-- **Estado actual**: Transcripción local con Whisper y resumen corto orquestado desde el backend utilizando LM Studio (vía API OpenAI-compatible). El flujo funciona; el prompt del sistema aún debe pulirse para obtener resúmenes más consistentes.
+- **Objetivo**: App web que permite a los usuarios transcribir audio y generar resúmenes (cortos y largos) utilizando la API de OpenAI, a través de su propia API key.
+- **Estado actual**: La aplicación ha sido refactorizada para eliminar las dependencias de modelos locales (Whisper CLI y LM Studio). Ahora, tanto la transcripción como los resúmenes se procesan a través de la API de OpenAI, utilizando una clave que el usuario proporciona en la página de configuración.
 - **Stack**:
   - Frontend: HTML + Tailwind vía CDN + JS vanilla.
   - Backend: Node.js + Express + TypeScript + Multer.
-  - Procesamiento: Whisper CLI dentro de venv (`/home/pablo/IA/whisper_env`).
+  - Procesamiento: **API de OpenAI** (modelos `whisper-1` y `gpt-3.5-turbo`).
 - **Puerto**: 3000 (`backend/src/index.ts`).
 - **Repositorio**: `Transcribe-summarize` (rama principal `main`).
 
-👉 **Regla de oro**: Mantén la experiencia local funcionando (transcripción básica). Todo cambio debe respetar esto.
+👉 **Regla de oro**: Toda la funcionalidad debe operar a través de la API de OpenAI. Asegurar que el flujo de subida, procesamiento y visualización de resultados sea robusto.
 
 ---
 
@@ -29,22 +29,20 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Capa | Responsabilidad | Archivos clave |
 |------|-----------------|----------------|
 | UI | Cargar audio, mostrar progreso/resultado | `index.html`, `styles/styles.css`, `scripts/action.js` |
-| Configuración | Gestionar API keys en el navegador | `settings.html`, `scripts/settings.js` |
-| Backend | Servir UI, aceptar uploads, lanzar Whisper, exponer estado | `backend/src/index.ts`, `backend/package.json`, `backend/tsconfig.json` |
+| Configuración | Gestionar la API key de OpenAI del usuario | `settings.html`, `scripts/settings.js` |
+| Backend | Servir UI, aceptar uploads, orquestar llamadas a la API de OpenAI | `backend/src/index.ts`, `backend/package.json`, `backend/tsconfig.json` |
 | Almacenamiento temporal | Ficheros subidos + jobs en memoria | `uploads/`, objeto `jobs` en memoria |
 
-### Flujo actual (transcripción y resumen)
-1. Usuario selecciona audio y pulsa un botón (`transcribe`, `shortSummaryBtn`, `longSummaryBtn`).
-2. `scripts/action.js` sube el archivo a `POST /api/transcribe?action=<tipo>` donde `tipo` puede ser `transcribe`, `summarize_short` o `summarize_long`.
-3. Backend responde `{ jobId }` y ejecuta `whisper <file>` asíncronamente.
-4. El backend almacena la transcripción en memoria; si la acción es `summarize_short` o `summarize_long`, genera el resumen con LM Studio antes de marcar el job como completado.
-5. Frontend hace polling a `GET /api/status/:jobId` cada 2 s.
-6. Cuando `status === 'completed'`, muestra el resultado: `data.summary` si existe, o `data.transcription` en caso contrario.
-
-### Flujo objetivo (próximas fases)
-- Elegir motor (local/API) y acción (transcribir, resumen corto, resumen largo) desde el frontend.
-- Backend delega en Whisper/Ollama o Groq/Gemini según configuración.
-- Posibilidad de instalar modelos locales desde UI (e.g., `ollama pull`).
+### Flujo actual (basado en API de OpenAI)
+1. El usuario introduce su API key de OpenAI en la página `settings.html`. La clave se guarda en `localStorage`.
+2. En `index.html`, el usuario selecciona un archivo de audio y pulsa un botón de acción (`transcribe`, `shortSummaryBtn`, `longSummaryBtn`).
+3. `scripts/action.js` lee la API key del `localStorage`, la adjunta como cabecera `Authorization: Bearer <key>` y sube el archivo a `POST /api/transcribe?action=<tipo>`.
+4. El backend recibe la petición, valida la cabecera y extrae la clave.
+5. El backend responde inmediatamente con un `{ jobId }` y comienza el procesamiento asíncrono.
+6. Se realiza una llamada a la API de OpenAI con el modelo `whisper-1` para obtener la transcripción.
+7. Si la acción es `summarize_short` o `summarize_long`, se realiza una segunda llamada a la API de Chat Completions de OpenAI (`gpt-3.5-turbo`) con la transcripción para generar el resumen.
+8. El estado del job se actualiza a `completed` con los datos resultantes.
+9. El frontend, que está haciendo polling a `GET /api/status/:jobId`, recibe el estado completado y muestra el resultado (`summary` o `transcription`) en la UI.
 
 ---
 
@@ -53,18 +51,18 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Tema | Detalle |
 |------|---------|
 | Servidor | Express; arranca con `npm run dev --prefix backend` (usa `ts-node-dev`). |
+| API Key | Se recibe en cada petición a `/api/transcribe` a través de la cabecera `Authorization: Bearer <API_KEY>`. |
 | Uploads | `multer` guarda archivos en `uploads/`; se eliminan tras terminar el job. |
 | Jobs | `jobs[jobId] = { status, data?, error? }`. No hay persistencia; reiniciar el servidor limpia todo. |
-| Whisper | Se ejecuta vía `exec` activando venv: `source /home/pablo/IA/whisper_env/bin/activate && whisper ... --model tiny`. Ajusta ruta si tu entorno difiere. |
-| Sanitizado actual | Se usa `stdout.trim()` (eliminación básica de espacios); ajusta si necesitas limpiar metadatos adicionales. |
-| Acciones | `POST /api/transcribe` lee `action` desde la query (`transcribe`, `summarize_short`, `summarize_long`), genera el resumen correspondiente si aplica y guarda `{ action, transcription, summary? }` en `jobs[jobId].data`. Ajusta el prompt en `generateShortSummary` o `generateLongSummary` si el output del LLM añade comentarios o no resume adecuadamente. |
-| CORS | Permitidos orígenes `http://127.0.0.1:3000` y `http://localhost:3000`. Actualiza si usas otro host. |
+| Whisper | Se utiliza la API de OpenAI a través de la librería `openai`, llamando al modelo `whisper-1`. **Ya no se usa el CLI local.** |
+| Resúmenes | Se utiliza la API de Chat Completions de OpenAI (`gpt-3.5-turbo`). La lógica está unificada en la función `generateSummary`. **Ya no se usa LM Studio.** |
+| CORS | Permitidos orígenes `*` y las cabeceras `Content-Type` y `Authorization`. |
 | Archivos estáticos | Servidos desde raíz, `/scripts` y `/styles`. |
 
 ⚠️ **Limitaciones**:
-- El prompt actual del resumen corto puede generar textos demasiado literales o con explicaciones extra.
-- El almacenamiento en memoria impide escalado o reintentos tras un reinicio.
+- El almacenamiento de jobs en memoria impide escalado o reintentos tras un reinicio.
 - Sin validación de formato/tamaño de audio.
+- La validez de la API key solo se comprueba al realizar la primera llamada a OpenAI.
 
 ---
 
@@ -72,33 +70,26 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 
 - `index.html`: interfaz principal con tres botones (`transcribeBtn`, `shortSummaryBtn`, `longSummaryBtn`).
 - `scripts/action.js`:
-  - `handleRequest` acepta un parámetro `action` y lo añade como querystring en la petición a `/api/transcribe`.
-  - Tras recibir el `jobId`, realiza polling cada 2 s hasta completar.
-  - La variable `isSummary` ahora reconoce tanto `summarize_short` como `summarize_long` para mostrar el estado correcto.
-  - Cuando llega la respuesta, muestra `result.data.summary` (si existe) o la transcripción limpia en `#response`.
+  - `handleRequest` lee la `openAiApiKey` de `localStorage`. Si no existe, muestra un error.
+  - Añade la clave a la cabecera `Authorization` en la petición `fetch` a `/api/transcribe`.
+  - Realiza polling para obtener el estado del job y muestra el resultado final.
 - `settings.html` + `scripts/settings.js`:
-  - Formulario para guardar en `localStorage` las API keys de Groq y Google.
-  - Toggle para mostrar/ocultar contenidos sensibles.
-- `styles/styles.css`: actualmente sólo define tipografía global (Inter y Noto Sans); la mayoría de estilos llegan desde Tailwind.
-
-🎯 **Oportunidades inmediatas**:
-- Afinar el prompt del resumen corto y validar la salida con varios audios.
-- Mostrar feedback diferenciado (progreso de transcripción vs. resumen) y logs de errores más descriptivos en la UI.
-- Validar tamaño/tipo antes de subir.
+  - **Formulario simplificado** con un único campo para la `openAiApiKey`.
+  - Guarda la clave en `localStorage`. Toggle para mostrar/ocultar la clave.
+- `styles/styles.css`: sin cambios, define tipografía global.
 
 ---
 
 ## 5. Dependencias externas & claves
 
-| Herramienta | Uso actual | Estado |
+| Herramienta | Uso | Estado |
 |-------------|-----------|--------|
-| Whisper CLI | Transcripción local | ✅ En uso (modelo `tiny`). |
-| LM Studio | Resúmenes locales | ✅ En uso para resumen corto y largo. |
-| Groq Whisper API | Transcripción remota | ⏳ Planificado. |
-| Google Gemini 2.5 Flash Lite | Resúmenes remotos | ⏳ Planificado. |
+| OpenAI API (Whisper) | Transcripción remota | ✅ **En uso** (modelo `whisper-1`). |
+| OpenAI API (Chat) | Resúmenes remotos | ✅ **En uso** (modelo `gpt-3.5-turbo`). |
+| Whisper CLI | Transcripción local | ❌ **Eliminado**. |
+| LM Studio | Resúmenes locales | ❌ **Eliminado**. |
 
-- Las API keys se guardan en `localStorage`; no hay backend para almacenarlas.
-- Cuando implementes llamadas externas, respeta este almacenamiento y pasa las claves mediante cabeceras o payload seguro.
+- La API key de OpenAI se guarda en `localStorage` y se transmite al backend en cada petición.
 
 ---
 
@@ -110,15 +101,12 @@ npm install --prefix backend
 
 # Levantar servidor en desarrollo (puerto 3000)
 npm run dev --prefix backend
-
-# (Pendiente) Descargar modelo Ollama
-# ollama pull <modelo>
 ```
 
 **Requisitos previos**:
 - Node.js instalado.
-- Python venv con Whisper disponible en `/home/pablo/IA/whisper_env`. Si usas otra ruta, actualiza `backend/src/index.ts`.
-- Directorio `uploads/` con permisos de escritura (Multer lo crea automáticamente, pero revisa permisos en despliegues).
+- Una API key de OpenAI válida para configurar en la aplicación.
+- Directorio `uploads/` con permisos de escritura.
 
 ---
 
@@ -126,54 +114,45 @@ npm run dev --prefix backend
 
 | Feature | Estado | Notas |
 |---------|--------|-------|
-| Transcripción local | ✅ | Funciona con Whisper tiny. |
-| Resumen corto / largo | ✅ | Resumen corto y largo integrados en `/api/transcribe` con LM Studio. El prompt de resumen largo está definido. |
-| Motores externos (Groq/Gemini) | ⏳ | Añadir configuración y llamadas API. |
-| Selector de motor | ⏳ | Usar configuración guardada en `settings.html`. |
-| Instalación automática de modelos | ⏳ | Endpoint para ejecutar comandos (`ollama pull`). |
+| Transcripción (API OpenAI) | ✅ | Funciona con el modelo `whisper-1`. |
+| Resumen corto / largo (API OpenAI) | ✅ | Integrado con el modelo `gpt-3.5-turbo`. |
+| Configuración de API Key | ✅ | El usuario puede introducir su propia clave de OpenAI. |
+| Transcripción local | ❌ | **Eliminada**. |
 | Validación de audio | ❌ | Añadir filtros en Multer + frontend. |
 | Tests / lint | ❌ | Scripts placeholder; definir convenciones. |
 
 **Próximos pasos sugeridos**:
-1. Afinar y probar el prompt de `generateShortSummary` para obtener resúmenes consistentes y sin comentarios meta.
-2. Separar la lógica de transcripción local vs. remota en `backend/src/index.ts`.
-3. Implementar resúmenes locales con Ollama (prompt definido aquí mismo).
-4. Añadir soporte para Groq/Gemini aprovechando las keys de `settings.html`.
-5. Documentar cada nueva integración en este archivo (sección 7/8) y en `README.md` si impacta al usuario final.
+1. Implementar validación de formato y tamaño de los archivos de audio.
+2. Añadir un feedback más granular en la UI (ej. "Transcribiendo...", "Generando resumen...").
+3. Considerar añadir soporte para otros proveedores de modelos (Gemini, Claude, etc.) si se solicita en el futuro.
+4. Añadir una suite de tests para validar la lógica del backend.
 
 ---
 
 ## 8. Playbook para agentes de IA
 
 1. **Lee esta guía completa** antes de tocar código.
-2. **Confirma requisitos** con el solicitante (botones afectados, modos esperado, etc.).
-3. **Toma contexto del código**: revisa `scripts/action.js` y `backend/src/index.ts` para entender patrones existentes.
-4. **Traza un plan corto** (2-4 pasos) y ejecútalo siguiendo este orden:
-   - Si es frontend+backend, empieza por la API y termina en la UI.
-   - Añade tests si introduces lógica crítica (aunque todavía no exista suite, considera crearlos).
-5. **Valida localmente** levantando el backend y haciendo una prueba con un audio pequeño.
-6. **Actualiza documentación**:
-   - Cambios menores: anota en sección correspondiente.
-   - Cambios mayores: actualiza `README.md` y añade notas de migración si rompes compatibilidad.
-7. **Entrega** un resumen claro de cambios + instrucciones de prueba. Mantén este archivo alineado.
+2. **Confirma requisitos** con el solicitante.
+3. **Toma contexto del código**: revisa `scripts/action.js` y `backend/src/index.ts` para entender el flujo de API.
+4. **Traza un plan corto** y ejecútalo.
+5. **Valida localmente** levantando el backend y haciendo una prueba con un audio y una API key válida.
+6. **Actualiza esta documentación** si realizas cambios en la arquitectura.
+7. **Entrega** un resumen claro de cambios + instrucciones de prueba.
 
 🔐 **Buenas prácticas**:
 - Nunca expongas API keys en repositorio o logs.
-- Sanitiza entradas antes de pasar a comandos shell.
-- Maneja errores de procesos (`exec`) con mensajes útiles.
-- Evita bloquear el event loop (usa procesos asíncronos, streams si es necesario).
+- Sanitiza entradas de usuario.
+- Maneja errores de API (ej. clave inválida, rate limits) con mensajes útiles para el usuario.
+- Evita bloquear el event loop (la lógica asíncrona actual cumple con esto).
 
 ---
 
 ## 9. Prompts & plantillas útiles
 
-- **Resumen corto (actual)**:
-  > "Tu tarea es crear un resumen muy breve, en un solo párrafo, del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe capturar la idea principal del audio de forma concisa."
-- **Resumen largo (actual)**:
-  > "Tu tarea es crear un resumen más extenso y detallado del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe ser profundo, capturando no solo los puntos principales sino también los matices, ideas secundarias y conexiones entre conceptos. Escribe el resumen como un texto continuo coherente, sin títulos ni puntos de lista, desarrollando cada aspecto importante del contenido en párrafos estructurados que mantengan el flujo lógico del tema tratado. Haz el resumen en español y si es muy estenxor, divídelo en varios párrafos para mejorar la legibilidad."
-- **Mensaje de fallback para UI**: "Transcripción vacía." (ya implementado cuando no se detectan líneas válidas).
-
-Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí.
+- **Resumen corto**:
+  > "Tu tarea es actuar como un narrador que explica brevemente de qué trata el contenido del audio. El texto es una transcripción y puede incluir información adicional como el idioma detectado. No hagas un resumen tradicional, sino que explica en un solo párrafo qué tipo de contenido tiene el audio, cuál es su propósito o temática principal, y qué puede esperar un oyente. Tu explicación debe ser concisa y enfocarse en la naturaleza del contenido, no en los detalles específicos de la transcripción."
+- **Resumen largo**:
+  > "Como narrador experto, proporciona directamente una explicación detallada sobre el contenido del audio que se te proporciona. No saludes ni hagas referencias a la transcripción que se te ha compartido. No digas "gracias por tu mensaje" ni "parece que estás compartiendo". Simplemente analiza el contenido del audio y explica en profundidad de qué se trata: su propósito, temática principal, estilo, contexto, objetivos, características especiales y cualquier elemento que defina el contenido. Estructura tu explicación en varios párrafos narrativos y detallados en español, enfocándote exclusivamente en explicar qué tipo de contenido tiene el audio y qué puede esperar un oyente."
 
 ---
 
@@ -181,53 +160,32 @@ Adapta estos prompts cuando integres Ollama/Gemini y documenta variaciones aquí
 
 | Problema | Causa probable | Qué hacer |
 |----------|----------------|-----------|
-| Respuesta vacía | Whisper escribe en `stderr` | Verifica logs del backend; el sanitizado ya combina ambos streams. |
-| `whisper` no encontrado | Ruta del venv incorrecta | Actualiza la cadena del comando o instala el venv. |
-| CORS bloquea peticiones | Host distinto a 127.0.0.1/localhost | Añade el nuevo origen en `corsOptions`. |
-| Jobs desaparecen | Reinicio del servidor | Implementa persistencia si necesitas conservar estados. |
-| Archivos quedan en `uploads/` | Fallo antes de `fs.unlink` | Revisa logs y añade manejo en casos de error temprano. |
+| Error 401 Unauthorized | API Key inválida, mal formateada o no proporcionada. | Verificar la clave en la página de `Settings` y asegurarse de que tiene créditos en OpenAI. |
+| Error de API (429, 500) | Rate limits de OpenAI excedidos o problemas en su servicio. | Esperar y reintentar. Consultar el estado de la API de OpenAI. |
+| CORS bloquea peticiones | La cabecera `Authorization` no está permitida. | Verificar la configuración de CORS en `backend/src/index.ts`. |
+| Jobs desaparecen | Reinicio del servidor. | Es el comportamiento esperado, ya que no hay persistencia. |
 
 ---
 
 ## 11. Gobernanza del documento
 
 - Mantén este archivo como **fuente única de verdad** para agentes.
-- Cuando completes una tarea relevante, añade un registro breve en la sección correspondiente y actualiza la fecha del encabezado.
-- Si este archivo crece demasiado, crea sub-secciones enlazadas pero mantén aquí la visión global.
+- Cuando completes una tarea relevante, actualiza la fecha del encabezado y las secciones pertinentes.
 
 ---
 
-## 12. Revisión de código y hallazgos (2025-10-03)
+## 12. Revisión de código y hallazgos (2025-10-03 -> 2025-10-04)
 
-### Hallazgos principales
-- **Vulnerabilidades**: Ninguna detectada en dependencias (npm audit: 0 vulnerabilidades).
+### Hallazgos y Acciones
+- **Vulnerabilidades**: Ninguna detectada.
 - **Backend**:
-  - CORS configurado con `origin: '*'`, lo cual permite cualquier origen. Recomendación: restringir a `['http://127.0.0.1:3000', 'http://localhost:3000']` para mayor seguridad.
-  - Código duplicado en `generateShortSummary` y `generateLongSummary` para procesar respuestas de OpenAI. Recomendación: extraer función común `processOpenAIResponse`.
-  - Typo en prompt de resumen largo: "estenxor" debería ser "extenso".
-  - Falta validación de tamaño/tipo de archivo en Multer. Recomendación: añadir límites (e.g., `limits: { fileSize: 100 * 1024 * 1024 }` para 100MB).
-  - Console.logs presentes; en producción, considerar usar un logger o removerlos.
+  - **CORS**: Se ha actualizado la configuración para permitir la cabecera `Authorization`. **(Solucionado)**
+  - **Código duplicado**: Las funciones de resumen se han refactorizado en una única función `generateSummary`. **(Solucionado)**
+  - **Typo en prompt**: Corregido typo "estenxor" por "extenso" en la versión anterior. **(Solucionado)**
+  - **Dependencias locales**: Se ha eliminado toda la lógica de ejecución de `whisper` local y la conexión con LM Studio. **(Solucionado)**
 - **Frontend**:
-  - Código limpio, sin issues de seguridad evidentes.
-  - Console.logs para debug; remover en producción.
-- **Configuraciones**: Coherentes, versiones actualizadas.
-- **Incoherencias**: Documento menciona CORS restringido, pero código usa '*'. Actualizar código para coincidir con doc.
-
-### Recomendaciones
-- Implementar validación de archivos en backend.
-- Refactorizar funciones de resumen para eliminar duplicación.
-- Corregir typo en prompt.
-- Restringir CORS.
-- Añadir logging estructurado si se expande.
-- Considerar tests unitarios para funciones críticas.
-
-### Resumen para agentes con prisa
-
-1. Transcripción local funciona; no rompas ese flujo.
-2. Frontend ahora diferencia acciones (`transcribe`, `summarize_short`, `summarize_long`).
-3. Backend ejecuta Whisper y opcionalmente resume con LM Studio.
-4. Guarda cambios de arquitectura aquí mismo.
-5. Toda nueva funcionalidad debe incluir instrucciones de prueba.
+  - **Configuración de claves**: La UI se ha simplificado para aceptar una única clave de OpenAI. **(Solucionado)**
+  - **Envío de clave**: Se implementó el envío seguro de la clave vía cabecera `Authorization`. **(Solucionado)**
 
 ---
 
