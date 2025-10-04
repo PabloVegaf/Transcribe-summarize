@@ -60,7 +60,8 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
   const filePath = req.file.path;
   console.log(`[${jobId}] File received: ${filePath}`);
 
-  const command = `bash -c "source /home/pablo/IA/whisper_env/bin/activate && whisper ${filePath} --model tiny"`; // Para mejores resultados, usar modelos más grandes como base, small, medium, large o turbo.
+  const lang = 'es';
+  const command = `bash -c "source /home/pablo/IA/whisper_env/bin/activate && whisper \"${filePath}\" --model tiny --output_dir /tmp --output_format txt --language ${lang} > /dev/null 2>&1 && cat \"/tmp/$(basename \"${filePath}\").txt\""`; // Para mejores resultados, usar modelos más grandes como base, small, medium, large o turbo.
   console.log(`[${jobId}] Executing command: ${command}`);
 
   exec(command, async (error, stdout, stderr) => {
@@ -78,8 +79,8 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
       jobs[jobId] = { status: 'failed', error: stderr };
     } else {
       console.log(`[${jobId}] Transcription successful.`);
-      // Sanitize stdout before sending
-      const cleanTranscription = stdout.trim();
+      // Sanitize stdout before sending - remove timestamps, language detection, and other metadata
+      const cleanTranscription = cleanWhisperOutput(stdout);
       if (action === 'summarize_short') {
         try {
           const summary = await generateShortSummary(cleanTranscription);
@@ -142,7 +143,7 @@ const lmstudio = new OpenAI({
 async function generateShortSummary(transcription: string): Promise<string> {
   try {
     const systemPrompt =
-      'Tu tarea es crear un resumen muy breve, en un solo párrafo, del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe capturar la idea principal del audio de forma concisa.';
+      'Tu tarea es actuar como un narrador que explica brevemente de qué trata el contenido del audio. El texto es una transcripción y puede incluir información adicional como el idioma detectado. No hagas un resumen tradicional, sino que explica en un solo párrafo qué tipo de contenido tiene el audio, cuál es su propósito o temática principal, y qué puede esperar un oyente. Tu explicación debe ser concisa y enfocarse en la naturaleza del contenido, no en los detalles específicos de la transcripción.';
     const response = await lmstudio.chat.completions.create({
       model: llm,
       messages: [
@@ -190,7 +191,7 @@ async function generateShortSummary(transcription: string): Promise<string> {
 async function generateLongSummary(transcription: string): Promise<string> {
   try {
     const systemPrompt =
-      'Tu tarea es crear un resumen más extenso y detallado del texto proporcionado. El texto es una transcripción de un audio y puede contener información adicional al principio, como el idioma detectado. Ignora por completo cualquier metadato o información sobre el proceso de transcripción y céntrate únicamente en el contenido del diálogo o el discurso. El resumen debe ser profundo, capturando no solo los puntos principales sino también los matices, ideas secundarias y conexiones entre conceptos. Escribe el resumen como un texto continuo coherente, sin títulos ni puntos de lista, desarrollando cada aspecto importante del contenido en párrafos estructurados que mantengan el flujo lógico del tema tratado. Haz el resumen en español y si es muy estenxor, divídelo en varios párrafos para mejorar la legibilidad.';
+      'Como narrador experto, proporciona directamente una explicación detallada sobre el contenido del audio que se te proporciona. No saludes ni hagas referencias a la transcripción que se te ha compartido. No digas \"gracias por tu mensaje\" ni \"parece que estás compartiendo\". Simplemente analiza el contenido del audio y explica en profundidad de qué se trata: su propósito, temática principal, estilo, contexto, objetivos, características especiales y cualquier elemento que defina el contenido. Estructura tu explicación en varios párrafos narrativos y detallados en español, enfocándote exclusivamente en explicar qué tipo de contenido tiene el audio y qué puede esperar un oyente.';
     const response = await lmstudio.chat.completions.create({
       model: llm,
       messages: [
@@ -231,6 +232,39 @@ async function generateLongSummary(transcription: string): Promise<string> {
     console.error('Error connecting to LM Studio:', error);
     throw new Error('Error generating summary.');
   }
+}
+
+// Function to clean Whisper output by removing timestamps, language detection, and other metadata
+function cleanWhisperOutput(output: string): string {
+  // Split the output into lines
+  const lines = output.split('\n');
+  
+  // Regular expression to match timestamps in formats like:
+  // [00:00.000 --> 00:05.000] or 0:00:00.000 --> 0:00:05.000
+  const timestampRegex = /^[\d:\[\].\-> ]+$/;
+  
+  // Filter out lines that contain only timestamps, language detection, or are empty
+  const filteredLines = lines.filter(line => {
+    const trimmedLine = line.trim();
+    
+    // Skip empty lines
+    if (!trimmedLine) return false;
+    
+    // Skip language detection lines
+    if (/^Detected language:/i.test(trimmedLine)) return false;
+    
+    // Skip lines that contain only timestamps
+    if (timestampRegex.test(trimmedLine)) return false;
+    
+    // Skip lines that look like file metadata like "Saving [format] to [filename]"
+    if (/^Saving.*to.*\.(txt|json|srt|vtt|tsv)$/i.test(trimmedLine)) return false;
+    
+    // Keep the actual transcription text
+    return true;
+  });
+  
+  // Join the filtered lines and clean up any remaining whitespace
+  return filteredLines.join(' ').trim();
 }
 
 app.listen(port, '0.0.0.0', () => {
