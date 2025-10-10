@@ -1,307 +1,222 @@
-# 🎙️ Audio Transcribe & Summarize
-
-Una aplicación web moderna para transcribir archivos de audio y generar resúmenes automáticos utilizando la API de OpenAI.
+# 🎙️ Transcribe & Summarize — Personal Practice Project
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-ISC-green.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-learning%20project-purple.svg)
 
-## 📋 Tabla de Contenidos
+_A project I built to practice full-stack development while exploring the OpenAI API. The app lets you upload an audio file, transcribe it remotely with Whisper, and generate short or long-form summaries with GPT models._
 
-- [Características](#-características)
-- [Tecnologías](#-tecnologías)
-- [Requisitos Previos](#-requisitos-previos)
-- [Instalación](#-instalación)
-- [Configuración](#-configuración)
-- [Uso](#-uso)
-- [Estructura del Proyecto](#-estructura-del-proyecto)
-- [API Endpoints](#-api-endpoints)
-- [Desarrollo](#-desarrollo)
-- [Solución de Problemas](#-solución-de-problemas)
-- [Contribuir](#-contribuir)
-- [Licencia](#-licencia)
+## Table of Contents
 
-## ✨ Características
+- [Overview](#overview)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Getting Started](#getting-started)
+- [Configuring the OpenAI API Key](#configuring-the-openai-api-key)
+- [Using the App](#using-the-app)
+- [API Reference](#api-reference)
+- [Project Structure](#project-structure)
+- [Development Notes](#development-notes)
+- [Limitations & Future Work](#limitations--future-work)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+- [Author](#author)
 
-- **Transcripción de Audio**: Convierte archivos de audio a texto usando el modelo Whisper de OpenAI
-- **Resúmenes Inteligentes**: Genera resúmenes cortos o largos del contenido transcrito
-- **Interfaz Moderna**: UI responsive construida con Tailwind CSS
-- **Procesamiento Asíncrono**: Sistema de jobs con polling para manejar archivos grandes
-- **Configuración Flexible**: Los usuarios proporcionan su propia API key de OpenAI
-- **Múltiples Formatos**: Soporta diversos formatos de audio (mp3, wav, m4a, etc.)
+## Overview
 
-## 🛠 Tecnologías
+This repository hosts a small web application I built as a full-stack practice project: it uploads audio, transcribes it via OpenAI Whisper, and produces short or long summaries with GPT models.
+
+
+Everything runs locally except for the OpenAI API calls, which require your own API key.
+
+## Features
+
+- **Remote transcription** using OpenAI Whisper (`whisper-1`)
+- **Short and long summaries** powered by GPT (`gpt-5-nano-2025-08-07`)
+- **Clean, responsive UI** built with pure HTML, vanilla JS, and Tailwind via CDN
+- **Asynchronous processing** with job IDs and client-side polling
+- **Local API key management** through a dedicated settings page (stored only in `localStorage`)
+- **Automatic cleanup** of uploaded audio files once processing finishes
+
+## Architecture
+
+| Layer            | Responsibility                                              | Key Files                                    |
+|------------------|--------------------------------------------------------------|----------------------------------------------|
+| Frontend (UI)    | File upload, progress feedback, displaying results           | `index.html`, `scripts/action.js`, `styles/` |
+| Config UI        | Capture and persist the user’s OpenAI API key                | `settings.html`, `scripts/settings.js`       |
+| Backend (API)    | Receive uploads, call OpenAI APIs, track job status          | `backend/src/index.ts`                       |
+| Temp Storage     | Store uploaded audio and in-memory job metadata              | `backend/uploads/`, in-memory `jobs` store   |
+
+The backend listens on **`http://localhost:3000`**, serves the static frontend, and exposes two JSON endpoints for job creation and status polling.
+
+## Tech Stack
 
 ### Frontend
 - HTML5
-- CSS3 (Tailwind CSS vía CDN)
-- JavaScript (ES6+ Vanilla)
-- Google Fonts (Inter, Noto Sans)
+- Tailwind CSS (via CDN)
+- Vanilla JavaScript (ES6+)
+- Google Fonts (Inter & Noto Sans)
 
 ### Backend
-- Node.js
-- TypeScript
-- Express.js
-- Multer (manejo de uploads)
-- OpenAI API (Whisper + gpt-5-nano-2025-08-07)
+- Node.js + Express 5
+- TypeScript with `ts-node-dev`
+- Multer for multipart uploads
+- Official `openai` Node SDK
 
-## 📦 Requisitos Previos
+## Getting Started
 
-- **Node.js**: >= 18.0.0
-- **npm**: >= 9.0.0
-- **API Key de OpenAI**: Necesaria para usar la aplicación ([Obtener aquí](https://platform.openai.com/api-keys))
+### Prerequisites
+- **Node.js** ≥ 18
+- **npm** ≥ 9
+- An **OpenAI API key** with access to Whisper and Chat Completions
 
-## 🚀 Instalación
-
-### 1. Clonar el repositorio
+### Installation
 
 ```bash
 git clone https://github.com/PabloVegaf/Transcribe-summarize.git
 cd Transcribe-summarize
-```
 
-### 2. Instalar dependencias del backend
-
-```bash
+# Install backend dependencies
 npm install --prefix backend
-```
 
-### 3. Levantar el servidor
-
-```bash
+# Start the development server
 npm run dev --prefix backend
 ```
 
-El servidor estará disponible en `http://localhost:3000`
+The backend will launch on `http://localhost:3000` and serve the frontend automatically.
 
-## ⚙️ Configuración
+## Configuring the OpenAI API Key
 
-### Configurar API Key de OpenAI
+1. Open `http://localhost:3000/settings.html` in your browser.
+2. Paste your OpenAI API key into the form and click **Save Settings**.
+3. The key is saved to `localStorage` and injected into each request as a Bearer token.
 
-1. Abre tu navegador y ve a `http://localhost:3000/settings.html`
-2. Introduce tu API Key de OpenAI en el campo correspondiente
-3. Haz clic en "Save Settings"
+➡️ _The key never touches the repository or disk—only your browser and the outgoing HTTPS requests._
 
-La clave se guarda en el `localStorage` del navegador y se envía de forma segura al backend en cada petición.
+## Using the App
 
-### Estructura de Configuración
+1. Navigate to `http://localhost:3000`.
+2. Drop an audio file or choose one with **Select File** (mp3, wav, m4a…)
+3. Choose an action:
+  - **Simple transcription** — returns raw text
+  - **Short Summary** — one-paragraph overview
+  - **Long Summary** — multi-paragraph explanation
+  - **You can customize the system prompt to adjust tone, language and level of detail for summaries.**
+    - Prompts for `short` and `long` can be modified in `backend/src/index.ts` (constant `prompts`).
+4. The UI polls the status endpoint every 2 seconds and replaces the message with the final result or an error.
 
-```javascript
-// La API key se almacena en localStorage
-localStorage.setItem('openAiApiKey', 'tu-api-key-aquí');
+## API Reference
+
+All endpoints live under `http://localhost:3000` and expect an **Authorization** header containing your OpenAI key.
+
+### `POST /api/transcribe`
+
+Creates a new job for transcription or summarization.
+
+| Element          | Details                                                                    |
+|------------------|----------------------------------------------------------------------------|
+| Headers          | `Authorization: Bearer YOUR_OPENAI_API_KEY`                                |
+| Query parameters | `action=transcribe | summarize_short | summarize_long` (defaults to plain) |
+| Body             | `multipart/form-data` with an `audio` file field                           |
+| Success          | `202 Accepted` with `{ "jobId": "<uuid>" }`                              |
+
+Example cURL:
+
+```bash
+curl -X POST "http://localhost:3000/api/transcribe?action=summarize_short" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -F "audio=@sample.mp3"
 ```
 
-## 📖 Uso
+### `GET /api/status/:jobId`
 
-### Transcripción Simple
+Returns the status of a previously created job.
 
-1. Ve a `http://localhost:3000`
-2. Selecciona un archivo de audio (arrastra y suelta o haz clic en "Select File")
-3. Haz clic en **"Simple transcription"**
-4. Espera a que se complete el procesamiento
-5. La transcripción aparecerá en pantalla
-
-### Generar Resumen Corto
-
-1. Sigue los pasos 1-2 anteriores
-2. Haz clic en **"Short Summary"**
-3. El sistema transcribirá el audio y generará un resumen conciso en un solo párrafo
-
-### Generar Resumen Largo
-
-1. Sigue los pasos 1-2 anteriores
-2. Haz clic en **"Long Summary"**
-3. El sistema generará un resumen detallado y extenso del contenido
-
-## 📁 Estructura del Proyecto
-
-```
-Transcribe-summarize/
-├── backend/
-│   ├── src/
-│   │   └── index.ts          # Servidor Express principal
-│   ├── uploads/              # Archivos temporales (auto-limpiados)
-│   ├── package.json
-│   └── tsconfig.json
-├── scripts/
-│   ├── action.js             # Lógica principal del frontend
-│   └── settings.js           # Gestión de configuración
-├── styles/
-│   └── styles.css            # Estilos personalizados
-├── index.html                # Página principal
-├── settings.html             # Página de configuración
-├── Supernova.md              # Guía completa para agentes IA
-└── README.md                 # Este archivo
-```
-
-## 🔌 API Endpoints
-
-### POST `/api/transcribe`
-
-Inicia un trabajo de transcripción/resumen.
-
-**Headers:**
-```
-Authorization: Bearer YOUR_OPENAI_API_KEY
-Content-Type: multipart/form-data
-```
-
-**Query Parameters:**
-- `action`: `transcribe` | `summarize_short` | `summarize_long`
-
-**Body:**
-- `audio`: Archivo de audio (FormData)
-
-**Respuesta:**
-```json
-{
-  "jobId": "a1b2c3d4e5f6..."
-}
-```
-
-### GET `/api/status/:jobId`
-
-Consulta el estado de un trabajo.
-
-**Respuesta:**
 ```json
 {
   "status": "completed",
   "data": {
     "action": "summarize_short",
-    "transcription": "Texto transcrito...",
-    "summary": "Resumen generado..."
+    "transcription": "...",
+    "summary": "..."
   }
 }
 ```
 
-**Estados posibles:**
-- `processing`: En proceso
-- `completed`: Completado
-- `failed`: Falló
+| Status     | Meaning                                           |
+|------------|---------------------------------------------------|
+| processing | Whisper/GPT call still running                    |
+| completed  | Result ready; payload depends on `action`         |
+| failed     | Error message available in the `error` property   |
 
-## 👨‍💻 Desarrollo
+## Project Structure
 
-### Ejecutar en modo desarrollo
+```
+Transcribe-summarize/
+├── backend/
+│   ├── src/index.ts          # Express server + OpenAI integration
+│   ├── package.json
+│   └── tsconfig.json
+├── scripts/
+│   ├── action.js             # Frontend logic for uploads & polling
+│   └── settings.js           # Settings page logic for API key
+├── styles/
+│   └── styles.css            # Minimal custom styles
+├── index.html                # Main UI
+├── settings.html             # API key management page
+└── README.md                 # You are here
+```
+
+Temporary assets (`backend/uploads/`), build artifacts, and private notes are excluded through `.gitignore`.
+
+## Development Notes
+
+- **Scripts**: `npm run dev --prefix backend` runs `ts-node-dev` for hot-reloading TypeScript.
+- **Type checking**: Run `npx tsc --noEmit` inside `backend` to verify types.
+- **Logging**: The server prints high-level job progress to stdout.
+- **Cleanup**: Uploaded files are deleted automatically after processing (success or failure).
+- **In-memory jobs**: Job data resets whenever you restart the server.
+
+## Limitations & Future Work
+
+- No persistence layer for jobs or results.
+- File validation (format/size) is minimal.
+- Error messages from OpenAI are surfaced directly.
+- No automated tests yet.
+- Frontend is intentionally simple—no state management or routing.
+
+Potential next steps:
+
+- Add database-backed job history and retry support.
+- Model selector (may affect API cost)
+- Offer downloadable transcripts in TXT/JSON formats.
+- Build a dark mode and multi-language UI.
+
+## Troubleshooting
+
+| Symptom                                                     | Likely cause & fix                                                                 |
+|-------------------------------------------------------------|------------------------------------------------------------------------------------|
+| `Authorization header with Bearer token is required`        | Save your key in `settings.html`; ensure requests include the header.             |
+| `401 Unauthorized`                                          | Key invalid or lacking credits; double-check usage limits in the OpenAI dashboard.|
+| `429 Rate limit exceeded`                                   | Too many requests; wait and retry or upgrade your OpenAI quota.                   |
+| No result after upload                                      | Check server logs, confirm the audio format is supported, keep files < ~25 MB.    |
+| CORS error in browser console                               | Access the UI via `http://localhost:3000`; headers already allow `Authorization`. |
+
+## Contributing
+
+This is primarily a learning project, but feel free to fork it or open issues if you have suggestions. Standard workflow:
 
 ```bash
-# Desde la raíz del proyecto
-npm run dev --prefix backend
+git checkout -b feature/awesome-improvement
+# make your changes
+git commit -m "feat: add awesome improvement"
+git push origin feature/awesome-improvement
 ```
 
-El servidor se reiniciará automáticamente al detectar cambios en los archivos TypeScript.
+## Author
 
-### Compilar TypeScript (opcional)
-
-```bash
-cd backend
-npx tsc --noEmit  # Solo verifica tipos sin compilar
-```
-
-### Estructura de Jobs
-
-Los trabajos se almacenan en memoria:
-
-```typescript
-type Job = {
-  status: 'processing' | 'completed' | 'failed';
-  data?: {
-    action: string;
-    transcription: string;
-    summary?: string;
-  };
-  error?: string;
-};
-```
-
-### Flujo de Procesamiento
-
-1. **Upload** → Usuario sube archivo
-2. **Job Creation** → Backend genera `jobId` único
-3. **Transcription** → OpenAI Whisper procesa el audio
-4. **Summarization** (opcional) → GPT-3.5-turbo genera resumen
-5. **Polling** → Frontend consulta cada 2s el estado
-6. **Display** → Resultado mostrado al usuario
-7. **Cleanup** → Archivo temporal eliminado
-
-## 🐛 Solución de Problemas
-
-### Error: "Authorization header with Bearer token is required"
-
-**Causa:** No se ha configurado la API key o no se está enviando correctamente.
-
-**Solución:**
-1. Ve a `/settings.html`
-2. Configura tu API key de OpenAI
-3. Recarga la página principal
-
-### Error 401: "Unauthorized"
-
-**Causa:** API key inválida o sin créditos.
-
-**Solución:**
-- Verifica que tu API key sea correcta
-- Comprueba que tengas créditos disponibles en tu cuenta de OpenAI
-- Genera una nueva API key si es necesario
-
-### Error 429: "Rate limit exceeded"
-
-**Causa:** Has superado el límite de peticiones de OpenAI.
-
-**Solución:**
-- Espera unos minutos antes de reintentar
-- Considera actualizar tu plan de OpenAI
-
-### El archivo no se procesa
-
-**Solución:**
-1. Verifica que el formato de audio sea compatible
-2. Comprueba el tamaño del archivo (límite recomendado: 25MB)
-3. Revisa los logs del servidor en la consola
-
-### CORS Error
-
-**Causa:** Problema de origen cruzado.
-
-**Solución:**
-- Asegúrate de acceder desde `localhost:3000`
-- Verifica la configuración de CORS en `backend/src/index.ts`
-
-## 🤝 Contribuir
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-### Guía para Agentes IA
-
-Si eres un agente de IA trabajando en este proyecto, consulta el archivo [`Supernova.md`](./Supernova.md) para obtener documentación completa sobre la arquitectura, flujos y mejores prácticas.
-
-## 📄 Licencia
-
-Este proyecto está bajo la licencia ISC.
-
-## 👤 Autor
-
-**Jules & Pablo Vega**
+**Pablo Vega** — Full-stack enthusiast experimenting with AI-assisted tooling. This repository documents my progress and learnings; feedback is welcome!
 
 ---
-
-## 🔮 Roadmap Futuro
-
-- [ ] Persistencia de jobs en base de datos
-- [ ] Soporte para múltiples proveedores de IA (Gemini, Claude)
-- [ ] Validación de formatos y tamaños de archivo
-- [ ] Sistema de tests automatizados
-- [ ] Descarga de transcripciones en diferentes formatos
-- [ ] Modo oscuro
-- [ ] Historial de transcripciones
-- [ ] Soporte multiidioma en la UI
-
----
-
-**⭐ Si este proyecto te fue útil, considera darle una estrella en GitHub!**
