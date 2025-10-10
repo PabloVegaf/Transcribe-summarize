@@ -18,10 +18,9 @@ _A project I built to practice full-stack development while exploring the OpenAI
 - [API Reference](#api-reference)
 - [Project Structure](#project-structure)
 - [Development Notes](#development-notes)
-- [Limitations & Future Work](#limitations--future-work)
+- [Potential next steps](#potential-next-steps)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
-- [License](#license)
 - [Author](#author)
 
 ## Overview
@@ -179,15 +178,7 @@ Temporary assets (`backend/uploads/`), build artifacts, and private notes are ex
 - **Cleanup**: Uploaded files are deleted automatically after processing (success or failure).
 - **In-memory jobs**: Job data resets whenever you restart the server.
 
-## Limitations & Future Work
-
-- No persistence layer for jobs or results.
-- File validation (format/size) is minimal.
-- Error messages from OpenAI are surfaced directly.
-- No automated tests yet.
-- Frontend is intentionally simple—no state management or routing.
-
-Potential next steps:
+## Potential next steps
 
 - Add database-backed job history and retry support.
 - Model selector (may affect API cost)
