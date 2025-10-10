@@ -43,7 +43,7 @@ Una aplicación web moderna para transcribir archivos de audio y generar resúme
 - TypeScript
 - Express.js
 - Multer (manejo de uploads)
-- OpenAI API (Whisper + GPT-3.5-turbo)
+- OpenAI API (Whisper + gpt-5-nano-2025-08-07)
 
 ## 📦 Requisitos Previos
 

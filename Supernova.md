@@ -16,7 +16,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 - **Stack**:
   - Frontend: HTML + Tailwind vía CDN + JS vanilla.
   - Backend: Node.js + Express + TypeScript + Multer.
-  - Procesamiento: **API de OpenAI** (modelos `whisper-1` y `gpt-3.5-turbo`).
+  - Procesamiento: **API de OpenAI** (modelos `whisper-1` y `gpt-5-nano-2025-08-07`).
 - **Puerto**: 3000 (`backend/src/index.ts`).
 - **Repositorio**: `Transcribe-summarize` (rama principal `main`).
 
@@ -40,7 +40,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 4. El backend recibe la petición, valida la cabecera y extrae la clave.
 5. El backend responde inmediatamente con un `{ jobId }` y comienza el procesamiento asíncrono.
 6. Se realiza una llamada a la API de OpenAI con el modelo `whisper-1` para obtener la transcripción.
-7. Si la acción es `summarize_short` o `summarize_long`, se realiza una segunda llamada a la API de Chat Completions de OpenAI (`gpt-3.5-turbo`) con la transcripción para generar el resumen.
+7. Si la acción es `summarize_short` o `summarize_long`, se realiza una segunda llamada a la API de Chat Completions de OpenAI (`gpt-5-nano-2025-08-07`) con la transcripción para generar el resumen.
 8. El estado del job se actualiza a `completed` con los datos resultantes.
 9. El frontend, que está haciendo polling a `GET /api/status/:jobId`, recibe el estado completado y muestra el resultado (`summary` o `transcription`) en la UI.
 
@@ -55,7 +55,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Uploads | `multer` guarda archivos en `uploads/`; se eliminan tras terminar el job. |
 | Jobs | `jobs[jobId] = { status, data?, error? }`. No hay persistencia; reiniciar el servidor limpia todo. |
 | Whisper | Se utiliza la API de OpenAI a través de la librería `openai`, llamando al modelo `whisper-1`. **Ya no se usa el CLI local.** |
-| Resúmenes | Se utiliza la API de Chat Completions de OpenAI (`gpt-3.5-turbo`). La lógica está unificada en la función `generateSummary`. **Ya no se usa LM Studio.** |
+| Resúmenes | Se utiliza la API de Chat Completions de OpenAI (`gpt-5-nano-2025-08-07`). La lógica está unificada en la función `generateSummary`. **Ya no se usa LM Studio.** |
 | CORS | Permitidos orígenes `*` y las cabeceras `Content-Type` y `Authorization`. |
 | Archivos estáticos | Servidos desde raíz, `/scripts` y `/styles`. |
 
@@ -85,7 +85,7 @@ Documento único de referencia para cualquier agente de IA (Gemini, Qwen, Claude
 | Herramienta | Uso | Estado |
 |-------------|-----------|--------|
 | OpenAI API (Whisper) | Transcripción remota | ✅ **En uso** (modelo `whisper-1`). |
-| OpenAI API (Chat) | Resúmenes remotos | ✅ **En uso** (modelo `gpt-3.5-turbo`). |
+| OpenAI API (Chat) | Resúmenes remotos | ✅ **En uso** (modelo `gpt-5-nano-2025-08-07`). |
 | Whisper CLI | Transcripción local | ❌ **Eliminado**. |
 | LM Studio | Resúmenes locales | ❌ **Eliminado**. |
 
@@ -115,7 +115,7 @@ npm run dev --prefix backend
 | Feature | Estado | Notas |
 |---------|--------|-------|
 | Transcripción (API OpenAI) | ✅ | Funciona con el modelo `whisper-1`. |
-| Resumen corto / largo (API OpenAI) | ✅ | Integrado con el modelo `gpt-3.5-turbo`. |
+| Resumen corto / largo (API OpenAI) | ✅ | Integrado con el modelo `gpt-5-nano-2025-08-07`. |
 | Configuración de API Key | ✅ | El usuario puede introducir su propia clave de OpenAI. |
 | Transcripción local | ❌ | **Eliminada**. |
 | Validación de audio | ❌ | Añadir filtros en Multer + frontend. |
@@ -189,6 +189,6 @@ npm run dev --prefix backend
 
 ---
 
-En caso que el agente tenga acceso al mcp de chrome-devtools, puede usar el archivo de audio /home/pablo/Música/prueba-whisper2.wav para hacer pruebas. Es un audio de prueba corto para probar la transcripción.
+En caso que el agente tenga acceso al mcp de chrome-devtools, puede usar el archivo de audio /home/pablo/Música/prueba-whisper2.mp3 para hacer pruebas. Es un audio de prueba corto para probar la transcripción.
 
 ¡Listo! Con este documento deberías tener todo lo necesario para contribuir con confianza al proyecto.

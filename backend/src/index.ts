@@ -79,9 +79,21 @@ app.get('/api/status/:jobId', (req, res) => {
 
 /**
  * Multer instance configured to handle file uploads.
- * It saves uploaded files temporarily to the 'uploads/' directory.
+ * It saves uploaded files temporarily to the 'uploads/' directory,
+ * preserving the original file extension to ensure compatibility with OpenAI API.
  */
-const upload = multer({ dest: 'uploads/' });
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const randomName = crypto.randomBytes(16).toString('hex');
+    const extension = path.extname(file.originalname);
+    cb(null, `${randomName}${extension}`);
+  },
+});
+
+const upload = multer({ storage });
 
 /**
  * @route POST /api/transcribe
@@ -202,7 +214,7 @@ async function generateSummary(
   };
 
   const systemPrompt = prompts[action];
-  const model = 'gpt-3.5-turbo';
+  const model = 'gpt-5-nano-2025-08-07';
 
   try {
     const response = await openai.chat.completions.create({
@@ -210,8 +222,7 @@ async function generateSummary(
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: transcription },
-      ],
-      temperature: 0.7,
+      ]
     });
 
     const summary = response.choices?.[0]?.message?.content?.trim();
