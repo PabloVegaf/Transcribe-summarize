@@ -17,3 +17,7 @@ backend/.env
 Thumbs.db
 .idea/
 .vscode/
+
+# Documentation
+DOCUMENTATION_SUMMARY.md
+Supernova.md
