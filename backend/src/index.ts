@@ -42,8 +42,8 @@ const jobs: Record<string, Job> = {};
  * Allows requests from any origin and specifies permitted headers, including 'Authorization'.
  */
 const corsOptions = {
-  origin: '*',
-  methods: ['POST', 'GET'],
+  origin: 'https://transcribe-summarize.vercel.app/',
+  methods: ['POST', 'GET', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
