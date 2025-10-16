@@ -46,7 +46,7 @@ Everything runs locally except for the OpenAI API calls, which require your own 
 | Frontend (UI)    | File upload, progress feedback, displaying results           | `index.html`, `scripts/action.js`, `styles/` |
 | Config UI        | Capture and persist the user’s OpenAI API key                | `settings.html`, `scripts/settings.js`       |
 | Backend (API)    | Receive uploads, call OpenAI APIs, track job status          | `backend/src/index.ts`                       |
-| Temp Storage     | Store uploaded audio and in-memory job metadata              | `backend/uploads/`, in-memory `jobs` store   |
+| Temp Storage     | Store uploaded audio and in-memory job metadata              | System's temp directory (e.g., `/tmp/uploads`), in-memory `jobs` store   |
 
 The backend listens on **`http://localhost:3000`**, serves the static frontend, and exposes two JSON endpoints for job creation and status polling.
 
@@ -158,14 +158,17 @@ Transcribe-summarize/
 │   ├── src/index.ts          # Express server + OpenAI integration
 │   ├── package.json
 │   └── tsconfig.json
-├── scripts/
-│   ├── action.js             # Frontend logic for uploads & polling
-│   └── settings.js           # Settings page logic for API key
-├── styles/
-│   └── styles.css            # Minimal custom styles
-├── index.html                # Main UI
-├── settings.html             # API key management page
-└── README.md                 # You are here
+├── frontend/
+│   ├── index.html            # Main UI
+│   ├── settings.html         # API key management page
+│   ├── scripts/
+│   │   ├── action.js         # Frontend logic for uploads & polling
+│   │   └── settings.js       # Settings page logic for API key
+│   └── styles/
+│       └── styles.css        # Minimal custom styles
+├── .gitignore
+├── package-lock.json
+└── README.md
 ```
 
 Temporary assets (`backend/uploads/`), build artifacts, and private notes are excluded through `.gitignore`.
@@ -177,6 +180,7 @@ Temporary assets (`backend/uploads/`), build artifacts, and private notes are ex
 - **Logging**: The server prints high-level job progress to stdout.
 - **Cleanup**: Uploaded files are deleted automatically after processing (success or failure).
 - **In-memory jobs**: Job data resets whenever you restart the server.
+- **Deployment**: The application is designed to run in both traditional and serverless environments. It uses the system's temporary directory (`/tmp`) for file uploads to ensure compatibility with read-only filesystems.
 
 ## Potential next steps
 

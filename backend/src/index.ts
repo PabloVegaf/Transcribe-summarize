@@ -14,12 +14,13 @@ import cors from 'cors';
 import crypto from 'crypto';
 import path from 'path';
 import OpenAI from 'openai';
+import os from 'os';
 
 const app = express();
 const port = 3000;
 
-// Create the uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '../uploads');
+// Create the uploads directory in the system's temp folder if it doesn't exist
+const uploadsDir = path.join(os.tmpdir(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
