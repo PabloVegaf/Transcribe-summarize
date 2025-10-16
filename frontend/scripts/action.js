@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     responseDiv.style.color = '#555';
 
     try {
-      const url = new URL('http://localhost:3000/api/transcribe');
+      const url = new URL('https://transcribe-summarize.onrender.com/api/transcribe');
       url.searchParams.set('action', action);
 
       const res = await fetch(url, {
