@@ -194,6 +194,7 @@ Temporary assets (`backend/uploads/`), build artifacts, and private notes are ex
 | `429 Rate limit exceeded`                                   | Too many requests; wait and retry or upgrade your OpenAI quota.                   |
 | No result after upload                                      | Check server logs, confirm the audio format is supported, keep files < ~25 MB.    |
 | CORS error in browser console                               | Access the UI via `http://localhost:3000`; headers already allow `Authorization`. |
+| `Error: ENOENT: no such file or directory, open 'uploads/...'` | The `uploads` directory for temporary files was not found. The backend now creates this directory automatically on startup, so this error should be resolved. If it persists, check the file system permissions. |
 
 ## Contributing
 

@@ -18,6 +18,12 @@ import OpenAI from 'openai';
 const app = express();
 const port = 3000;
 
+// Create the uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 /**
  * Represents the state of a single processing job.
  * @property {'processing' | 'completed' | 'failed'} status - The current status of the job.
