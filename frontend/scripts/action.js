@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const intervalId = setInterval(async () => {
       try {
-        const res = await fetch(`http://localhost:3000/api/status/${jobId}`);
+        const res = await fetch(`https://transcribe-summarize.onrender.com/api/status/${jobId}`);
         if (!res.ok) throw new Error(`Polling failed: ${res.statusText}`);
         const result = await res.json();
 
