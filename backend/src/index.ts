@@ -54,9 +54,7 @@ app.use(express.json());
  * Serves static files from the project's root, scripts, and styles directories.
  * This allows the frontend HTML, CSS, and JS files to be accessed by the browser.
  */
-app.use(express.static(path.join(__dirname, '../../')));
-app.use('/scripts', express.static(path.join(__dirname, '../../scripts')));
-app.use('/styles', express.static(path.join(__dirname, '../../styles')));
+app.use(express.static(path.join(__dirname, '../../frontend')));
 
 /**
  * @route GET /api/status/:jobId
