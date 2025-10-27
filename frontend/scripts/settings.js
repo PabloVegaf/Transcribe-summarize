@@ -3,9 +3,11 @@
  * @summary This script handles loading the OpenAI API key from localStorage,
  * saving it when the user submits the form, and toggling the visibility
  * of the key in the input field.
- * @author Jules
+ * @author Pablo Vega
  * @version 1.0.0
  */
+
+import { validateApiKey } from './action.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     /** @type {HTMLFormElement} */
@@ -20,6 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load the saved API key from localStorage into the input field on page load.
     if (openAiApiKeyInput) {
         openAiApiKeyInput.value = localStorage.getItem('openAiApiKey') || '';
+
+        openAiApiKeyInput.setAttribute('maxlength', '56');
+        openAiApiKeyInput.setAttribute('minlength', '45');
+        openAiApiKeyInput.setAttribute('pattern', 'sk-[A-Za-z0-9_-]+');
+        openAiApiKeyInput.setAttribute('placeholder', 'sk-...');
+        openAiApiKeyInput.setAttribute('autocomplete', 'off');
+        openAiApiKeyInput.setAttribute('spellcheck', 'false');
     }
 
     /**
@@ -58,15 +67,20 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
 
             const openAiKey = openAiApiKeyInput.value.trim();
+            const validation = validateApiKey(openAiKey);
 
-            // Save the key to localStorage.
+            if (!validation.isValid) {
+                feedbackDiv.textContent = validation.error;
+                feedbackDiv.style.color = 'red';
+                return;
+            }
+
+            // Save the key to localStorage only after passing validation.
             localStorage.setItem('openAiApiKey', openAiKey);
 
-            // Provide user feedback.
             feedbackDiv.textContent = 'Settings saved successfully!';
             feedbackDiv.style.color = 'green';
 
-            // Clear feedback message after 3 seconds.
             setTimeout(() => {
                 feedbackDiv.textContent = '';
             }, 3000);

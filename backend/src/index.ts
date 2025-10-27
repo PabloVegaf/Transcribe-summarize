@@ -3,7 +3,7 @@
  * @summary This file sets up an Express server to handle audio uploads,
  * process them using the OpenAI API for transcription and summarization,
  * and provide job status updates to the client.
- * @author Jules
+ * @author Pablo Vega
  * @version 1.0.0
  */
 
