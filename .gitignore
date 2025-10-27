@@ -1,6 +1,7 @@
 node_modules/
 backend/node_modules/
 backend/uploads/
+.gemini
 
 # Logs
 *.log
@@ -19,4 +20,5 @@ Thumbs.db
 
 # Private documentation
 DOCUMENTATION_SUMMARY.md
-Supernova.md
+Agent.md
+PROJECT_EXPLANATION.md
