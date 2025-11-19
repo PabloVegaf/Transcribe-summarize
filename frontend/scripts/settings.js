@@ -15,7 +15,52 @@
  * @version 1.0.0
  */
 
-import { validateApiKey } from './action.js';
+/**
+ * Validates the format of an OpenAI API key.
+ * 
+ * @param {string} apiKey - The API key to validate
+ * @returns {{isValid: boolean, error: string|null}} Result object
+ */
+const validateApiKey = (apiKey) => {
+    const trimmedKey = apiKey.trim();
+
+    if (trimmedKey.length === 0) {
+        return {
+            isValid: false,
+            error: 'API key cannot be empty.',
+        };
+    }
+
+    if (trimmedKey.length < 45) {
+        return {
+            isValid: false,
+            error: 'API key is too short. OpenAI API keys are at least 45 characters.',
+        };
+    }
+
+    if (trimmedKey.length > 56) {
+        return {
+            isValid: false,
+            error: 'API key is too long. Please verify you copied the correct key.',
+        };
+    }
+
+    if (!trimmedKey.startsWith('sk-')) {
+        return {
+            isValid: false,
+            error: 'API key format is invalid. OpenAI API keys start with "sk-".',
+        };
+    }
+
+    if (!/^sk-[A-Za-z0-9_-]+$/.test(trimmedKey)) {
+        return {
+            isValid: false,
+            error: 'API key contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed.',
+        };
+    }
+
+    return { isValid: true, error: null };
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     /** @type {HTMLFormElement} */
@@ -38,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackDiv.textContent = message;
         feedbackDiv.style.color = type === 'success' ? 'green' : type === 'error' ? 'red' : '#555';
         feedbackDiv.style.fontWeight = type === 'error' ? 'bold' : 'normal';
-        
+
         if (duration > 0) {
             setTimeout(() => {
                 feedbackDiv.textContent = '';
@@ -117,13 +162,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!validation.isValid) {
             // Display validation error
             showFeedback(validation.error, 'error', 0);
-            
+
             // Add visual feedback to the input field
             openAiApiKeyInput.classList.add('border-red-500');
             setTimeout(() => {
                 openAiApiKeyInput.classList.remove('border-red-500');
             }, 3000);
-            
+
             return;
         }
 
@@ -132,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show success message
         showFeedback('Settings saved successfully!', 'success');
-        
+
         // Add visual feedback to the input field
         openAiApiKeyInput.classList.add('border-green-500');
         setTimeout(() => {
@@ -152,11 +197,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (openAiApiKeyInput) {
         openAiApiKeyInput.addEventListener('input', () => {
             const currentValue = openAiApiKeyInput.value.trim();
-            
+
             // Only show validation feedback if user has typed something
             if (currentValue.length > 0) {
                 const validation = validateApiKey(currentValue);
-                
+
                 if (!validation.isValid) {
                     // Show subtle error indication without being too intrusive
                     openAiApiKeyInput.classList.add('border-red-300');
