@@ -1,8 +1,16 @@
 /**
  * @file Manages the functionality of the settings page (settings.html).
  * @summary This script handles loading the OpenAI API key from localStorage,
- * saving it when the user submits the form, and toggling the visibility
- * of the key in the input field.
+ * saving it when the user submits the form, toggling the visibility
+ * of the key in the input field, and providing real-time validation feedback.
+ * 
+ * Security features:
+ * - Validates API key format before saving (using imported validateApiKey function)
+ * - Uses HTML5 validation attributes as first line of defense
+ * - Prevents API key from appearing in URL by using preventDefault on form submission
+ * - Stores API key only in localStorage (client-side storage)
+ * - Provides clear error messages for invalid keys
+ * 
  * @author Pablo Vega
  * @version 1.0.0
  */
@@ -19,16 +27,40 @@ document.addEventListener('DOMContentLoaded', () => {
     /** @type {HTMLButtonElement} */
     const toggleOpenAiApiKey = document.getElementById('toggleOpenAiApiKey');
 
+    /**
+     * Displays a feedback message to the user with appropriate styling.
+     * 
+     * @param {string} message - The message to display
+     * @param {'success' | 'error' | 'info'} type - The type of message
+     * @param {number} [duration=3000] - How long to display the message (0 for persistent)
+     */
+    const showFeedback = (message, type, duration = 3000) => {
+        feedbackDiv.textContent = message;
+        feedbackDiv.style.color = type === 'success' ? 'green' : type === 'error' ? 'red' : '#555';
+        feedbackDiv.style.fontWeight = type === 'error' ? 'bold' : 'normal';
+        
+        if (duration > 0) {
+            setTimeout(() => {
+                feedbackDiv.textContent = '';
+            }, duration);
+        }
+    };
+
+    /**
+     * Sanitizes the API key by trimming whitespace.
+     * This prevents accidental spaces from being stored.
+     * 
+     * @param {string} key - The API key to sanitize
+     * @returns {string} The sanitized API key
+     */
+    const sanitizeApiKey = (key) => {
+        return key.trim();
+    };
+
     // Load the saved API key from localStorage into the input field on page load.
     if (openAiApiKeyInput) {
-        openAiApiKeyInput.value = localStorage.getItem('openAiApiKey') || '';
-
-        openAiApiKeyInput.setAttribute('maxlength', '56');
-        openAiApiKeyInput.setAttribute('minlength', '45');
-        openAiApiKeyInput.setAttribute('pattern', 'sk-[A-Za-z0-9_-]+');
-        openAiApiKeyInput.setAttribute('placeholder', 'sk-...');
-        openAiApiKeyInput.setAttribute('autocomplete', 'off');
-        openAiApiKeyInput.setAttribute('spellcheck', 'false');
+        const savedKey = localStorage.getItem('openAiApiKey');
+        openAiApiKeyInput.value = savedKey ? sanitizeApiKey(savedKey) : '';
     }
 
     /**
@@ -61,29 +93,83 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleOpenAiApiKey.addEventListener('click', () => toggleVisibility(openAiApiKeyInput, toggleOpenAiApiKey));
     }
 
+    /**
+     * Handles form submission for saving the API key.
+     * 
+     * Security measures:
+     * 1. Prevents default form submission to avoid API key appearing in URL
+     * 2. Sanitizes input by trimming whitespace
+     * 3. Validates API key format using validateApiKey function
+     * 4. Only saves to localStorage after successful validation
+     * 
+     * @param {Event} event - The form submission event
+     */
+    const handleFormSubmit = (event) => {
+        // CRITICAL: Prevent default form submission to avoid API key in URL
+        event.preventDefault();
+
+        // Sanitize the input
+        const openAiKey = sanitizeApiKey(openAiApiKeyInput.value);
+
+        // Validate the API key format
+        const validation = validateApiKey(openAiKey);
+
+        if (!validation.isValid) {
+            // Display validation error
+            showFeedback(validation.error, 'error', 0);
+            
+            // Add visual feedback to the input field
+            openAiApiKeyInput.classList.add('border-red-500');
+            setTimeout(() => {
+                openAiApiKeyInput.classList.remove('border-red-500');
+            }, 3000);
+            
+            return;
+        }
+
+        // Validation passed - save the sanitized key to localStorage
+        localStorage.setItem('openAiApiKey', openAiKey);
+
+        // Show success message
+        showFeedback('Settings saved successfully!', 'success');
+        
+        // Add visual feedback to the input field
+        openAiApiKeyInput.classList.add('border-green-500');
+        setTimeout(() => {
+            openAiApiKeyInput.classList.remove('border-green-500');
+        }, 3000);
+    };
+
     // Attach event listener to the form submission.
     if (apiSettingsForm) {
-        apiSettingsForm.addEventListener('submit', (event) => {
-            event.preventDefault();
+        apiSettingsForm.addEventListener('submit', handleFormSubmit);
+    }
 
-            const openAiKey = openAiApiKeyInput.value.trim();
-            const validation = validateApiKey(openAiKey);
-
-            if (!validation.isValid) {
-                feedbackDiv.textContent = validation.error;
-                feedbackDiv.style.color = 'red';
-                return;
+    /**
+     * Provides real-time validation feedback as the user types.
+     * This helps users catch errors before submitting the form.
+     */
+    if (openAiApiKeyInput) {
+        openAiApiKeyInput.addEventListener('input', () => {
+            const currentValue = openAiApiKeyInput.value.trim();
+            
+            // Only show validation feedback if user has typed something
+            if (currentValue.length > 0) {
+                const validation = validateApiKey(currentValue);
+                
+                if (!validation.isValid) {
+                    // Show subtle error indication without being too intrusive
+                    openAiApiKeyInput.classList.add('border-red-300');
+                    openAiApiKeyInput.classList.remove('border-green-300');
+                } else {
+                    // Show success indication
+                    openAiApiKeyInput.classList.add('border-green-300');
+                    openAiApiKeyInput.classList.remove('border-red-300');
+                }
+            } else {
+                // Clear validation styling if field is empty
+                openAiApiKeyInput.classList.remove('border-red-300', 'border-green-300');
             }
-
-            // Save the key to localStorage only after passing validation.
-            localStorage.setItem('openAiApiKey', openAiKey);
-
-            feedbackDiv.textContent = 'Settings saved successfully!';
-            feedbackDiv.style.color = 'green';
-
-            setTimeout(() => {
-                feedbackDiv.textContent = '';
-            }, 3000);
         });
     }
 });

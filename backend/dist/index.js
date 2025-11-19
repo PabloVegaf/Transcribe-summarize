@@ -4,7 +4,7 @@
  * @summary This file sets up an Express server to handle audio uploads,
  * process them using the OpenAI API for transcription and summarization,
  * and provide job status updates to the client.
- * @author Jules
+ * @author Pablo Vega
  * @version 1.0.0
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -27,8 +27,16 @@ const cors_1 = __importDefault(require("cors"));
 const crypto_1 = __importDefault(require("crypto"));
 const path_1 = __importDefault(require("path"));
 const openai_1 = __importDefault(require("openai"));
+const os_1 = __importDefault(require("os"));
+const helmet_1 = __importDefault(require("helmet"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const app = (0, express_1.default)();
 const port = 3000;
+// Create the uploads directory in the system's temp folder if it doesn't exist
+const uploadsDir = path_1.default.join(os_1.default.tmpdir(), 'uploads');
+if (!fs_1.default.existsSync(uploadsDir)) {
+    fs_1.default.mkdirSync(uploadsDir, { recursive: true });
+}
 /**
  * In-memory store for tracking the status of all active jobs.
  * Each key is a unique `jobId`, and the value is a `Job` object.
@@ -41,18 +49,25 @@ const jobs = {};
  */
 const corsOptions = {
     origin: '*',
-    methods: ['POST', 'GET'],
+    methods: ['POST', 'GET', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
+app.use((0, helmet_1.default)());
 app.use((0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
+// Rate limiting: 100 requests per 15 minutes
+const limiter = (0, express_rate_limit_1.default)({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use(limiter);
 /**
  * Serves static files from the project's root, scripts, and styles directories.
  * This allows the frontend HTML, CSS, and JS files to be accessed by the browser.
  */
-app.use(express_1.default.static(path_1.default.join(__dirname, '../../')));
-app.use('/scripts', express_1.default.static(path_1.default.join(__dirname, '../../scripts')));
-app.use('/styles', express_1.default.static(path_1.default.join(__dirname, '../../styles')));
+app.use(express_1.default.static(path_1.default.join(__dirname, '../../frontend')));
 /**
  * @route GET /api/status/:jobId
  * @description Endpoint to check the status of a specific processing job.
@@ -76,7 +91,7 @@ app.get('/api/status/:jobId', (req, res) => {
  */
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        cb(null, uploadsDir);
     },
     filename: (req, file, cb) => {
         const randomName = crypto_1.default.randomBytes(16).toString('hex');
@@ -84,7 +99,25 @@ const storage = multer_1.default.diskStorage({
         cb(null, `${randomName}${extension}`);
     },
 });
-const upload = (0, multer_1.default)({ storage });
+const upload = (0, multer_1.default)({
+    storage,
+    limits: {
+        fileSize: 25 * 1024 * 1024, // 25 MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        const allowedMimeTypes = [
+            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
+            'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/ogg', 'audio/flac',
+            'audio/webm', 'audio/3gpp', 'audio/3gpp2', 'audio/x-ms-wma'
+        ];
+        if (allowedMimeTypes.includes(file.mimetype)) {
+            cb(null, true);
+        }
+        else {
+            cb(new Error('Invalid file type. Only audio files are allowed.'));
+        }
+    },
+});
 /**
  * @route POST /api/transcribe
  * @description Handles audio file uploads, initiates transcription and optional summarization jobs.
@@ -212,6 +245,19 @@ function generateSummary(transcription, action, openai) {
         }
     });
 }
+// Global error handler for Multer and other errors
+app.use((err, req, res, next) => {
+    if (err instanceof multer_1.default.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File too large. Maximum size is 25MB.' });
+        }
+        return res.status(400).json({ error: err.message });
+    }
+    else if (err) {
+        return res.status(400).json({ error: err.message });
+    }
+    next();
+});
 app.listen(port, '0.0.0.0', () => {
     console.log(`Server listening on port ${port}`);
 });

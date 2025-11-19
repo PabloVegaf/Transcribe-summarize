@@ -3,7 +3,7 @@
  * @summary This script handles audio file selection, API key validation,
  * making requests to the backend for transcription/summarization, and
  * polling for results to display to the user.
- * @author Jules
+ * @author Pablo Vega
  * @version 1.0.0
  */
 
