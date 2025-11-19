@@ -15,6 +15,8 @@ import crypto from 'crypto';
 import path from 'path';
 import OpenAI from 'openai';
 import os from 'os';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 const port = 3000;
@@ -54,8 +56,18 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Rate limiting: 100 requests per 15 minutes
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+app.use(limiter);
 
 /**
  * Serves static files from the project's root, scripts, and styles directories.
@@ -98,7 +110,24 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: 25 * 1024 * 1024, // 25 MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = [
+      'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
+      'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/ogg', 'audio/flac',
+      'audio/webm', 'audio/3gpp', 'audio/3gpp2', 'audio/x-ms-wma'
+    ];
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only audio files are allowed.'));
+    }
+  },
+});
 
 /**
  * @route POST /api/transcribe
@@ -237,6 +266,19 @@ async function generateSummary(
     throw new Error('Error generating summary.');
   }
 }
+
+// Global error handler for Multer and other errors
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File too large. Maximum size is 25MB.' });
+    }
+    return res.status(400).json({ error: err.message });
+  } else if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  next();
+});
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Server listening on port ${port}`);
