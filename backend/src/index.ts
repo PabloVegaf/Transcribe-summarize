@@ -56,7 +56,18 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "cdn.tailwindcss.com", "'unsafe-eval'"], // 'unsafe-eval' needed for Tailwind CDN
+      styleSrc: ["'self'", "fonts.googleapis.com", "'unsafe-inline'"], // 'unsafe-inline' needed for Tailwind styles
+      fontSrc: ["'self'", "fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "https://transcribe-summarize.onrender.com"], // Allow connection to production API if used
+    },
+  },
+}));
 app.use(cors(corsOptions));
 app.use(express.json());
 

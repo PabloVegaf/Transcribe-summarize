@@ -52,7 +52,18 @@ const corsOptions = {
     methods: ['POST', 'GET', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
-app.use((0, helmet_1.default)());
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "cdn.tailwindcss.com", "'unsafe-eval'"], // 'unsafe-eval' needed for Tailwind CDN
+            styleSrc: ["'self'", "fonts.googleapis.com", "'unsafe-inline'"], // 'unsafe-inline' needed for Tailwind styles
+            fontSrc: ["'self'", "fonts.gstatic.com"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'", "https://transcribe-summarize.onrender.com"], // Allow connection to production API if used
+        },
+    },
+}));
 app.use((0, cors_1.default)(corsOptions));
 app.use(express_1.default.json());
 // Rate limiting: 100 requests per 15 minutes
