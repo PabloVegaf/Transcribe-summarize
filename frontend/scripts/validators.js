@@ -24,14 +24,14 @@ export const validateApiKey = (apiKey) => {
     };
   }
 
-  if (trimmedKey.length < 45) {
+  if (trimmedKey.length < 20) {
     return {
       isValid: false,
-      error: 'API key is too short. OpenAI API keys are at least 45 characters.',
+      error: 'API key is too short. OpenAI API keys must be at least 20 characters.',
     };
   }
 
-  if (trimmedKey.length > 56) {
+  if (trimmedKey.length > 200) {
     return {
       isValid: false,
       error: 'API key is too long. Please verify you copied the correct key.',
@@ -45,7 +45,7 @@ export const validateApiKey = (apiKey) => {
     };
   }
 
-  if (!/^sk-[A-Za-z0-9_-]+$/.test(trimmedKey)) {
+  if (!/^sk-[A-Za-z0-9_\-]+$/.test(trimmedKey)) {
     return {
       isValid: false,
       error: 'API key contains invalid characters. Only alphanumeric characters, hyphens, and underscores are allowed.',
