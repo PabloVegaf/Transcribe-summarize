@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
   /** @type {HTMLDivElement} */
   const responseDiv = document.getElementById('response');
 
+  console.log('Cargado de localStorage - Modelo Transcriptor:', localStorage.getItem('transcriptorModel'));
+  console.log('Cargado de localStorage - LLM Resumidor:', localStorage.getItem('llmResumidor'));
+
   /**
    * Validates if a file is actually an audio file based on its MIME type and extension.
    * {@param {File} file - The file to validate.

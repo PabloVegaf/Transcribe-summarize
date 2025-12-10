@@ -66,6 +66,20 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="model" class="text-[#111418] text-sm font-medium">LLM (Summarization model)</label>
+                            <select id="model" name="model" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                <option value="gpt-5.1-2025-11-13">GPT-5.1 (Better)</option>
+                                <option value="gpt-5-nano-2025-08-07">GPT-5 nano (Fast, cost-efficient)</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="transcriptorModel" class="text-[#111418] text-sm font-medium">Transcriptor Model</label>
+                            <select id="transcriptorModel" name="transcriptorModel" class="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                                <option value="gpt-4o-transcribe">GPT-4o Transcribe (Better)</option>
+                                <option value="gpt-4o-mini-transcribe">GPT-4o-mini Transcribe (Cost-efficient)</option>
+                            </select>
+                        </div>
                         <div class="flex justify-end pt-4">
                             <button type="submit" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-10 px-4 bg-[#111418] text-white text-sm font-bold leading-normal tracking-[0.015em]">
                                 <span class="truncate">Save Settings</span>
