@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="./Images/Logo.png" alt="Audio Summarizer Logo" width="200" height="200">
+</div>
+
 # 🎙️ Transcribe & Summarize — Personal Practice Project
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)

@@ -8,22 +8,35 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link rel="stylesheet" href="styles/styles.css" />
     <title>Settings - Audio Summarizer</title>
-    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," />
+    <link rel="icon" type="image/x-icon" href="Images/favicon.ico" />
     <script type="module" src="scripts/settings.js"></script>
 </head>
 <body>
     <div class="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden">
         <div class="layout-container flex h-full grow flex-col">
-            <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f0f2f5] px-10 py-3">
-                <div class="flex items-center gap-4 text-[#111418]">
-                    <h2 class="text-[#111418] text-lg font-bold leading-tight tracking-[-0.015em]">Audio Summarizer</h2>
-                </div>
-                <div class="flex flex-1 justify-end gap-8">
-                    <div class="flex items-center gap-9">
-                        <a class="text-[#111418] text-sm font-medium leading-normal" href="/index.html">Home</a>
-                    </div>
-                </div>
-            </header>
+            <header
+          class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f0f2f5] px-10 py-3"
+        >
+          <div class="flex items-center gap-4 text-[#111418]">
+            <div class="size-14">
+              <img src="Images/Logo.png" alt="logo" class="w-full h-full object-contain">
+            </div>
+            <h2
+              class="text-[#111418] text-lg font-bold leading-tight tracking-[-0.015em]"
+            >
+              Audio Summarizer
+            </h2>
+          </div>
+          <div class="flex flex-1 justify-end gap-8">
+            <div class="flex items-center gap-9">
+              <a
+                class="text-[#111418] text-sm font-medium leading-normal"
+                href="/index.html"
+                >Home</a
+              >
+            </div>
+          </div>
+        </header>
 
             <main class="px-40 flex flex-1 justify-center py-5">
                 <div class="layout-content-container flex flex-col max-w-[960px] flex-1">
@@ -67,8 +80,7 @@
               <div class="flex max-w-[960px] flex-1 flex-col">
                 <footer class="flex flex-col gap-6 px-5 py-10 text-center @container">
                   <div class="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around">
-                    <a class="text-[#60758a] text-base font-normal leading-normal min-w-40" href="#">Terms of Service</a>
-                    <a class="text-[#60758a] text-base font-normal leading-normal min-w-40" href="#">Privacy Policy</a>
+                    <p>Made by <a class="text-[#60758a] text-base font-normal leading-normal min-w-40" href="https://github.com/PabloVegaf" target="_blank">Pablo Vega</a></p> 
                   </div>
                   <p class="text-[#60758a] text-base font-normal leading-normal">@2024 Audio Summarizer. All rights reserved.</p>
                 </footer>
