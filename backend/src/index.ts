@@ -18,6 +18,8 @@ import os from 'os';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
+const settingsFilePath = path.join(__dirname, 'settings.json');
+
 const app = express();
 const port = 3000;
 
@@ -164,6 +166,10 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
   const actionParam = typeof req.query.action === 'string' ? req.query.action : undefined;
   const action = actionParam === 'summarize_short' || actionParam === 'summarize_long' ? actionParam : 'transcribe';
 
+  // Get models from query parameters or use defaults
+  const transcriptorModel = typeof req.query.transcriptorModel === 'string' ? req.query.transcriptorModel : 'gpt-4o-mini-transcribe';
+  const summaryModel = typeof req.query.summaryModel === 'string' ? req.query.summaryModel : 'gpt-5-nano-2025-08-07';
+
   const jobId = crypto.randomBytes(16).toString('hex');
   jobs[jobId] = { status: 'processing', data: { action } };
 
@@ -172,7 +178,7 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
   const filePath = req.file.path;
   console.log(`[${jobId}] File received: ${filePath}`);
 
-  processJob(jobId, filePath, action, apiKey);
+  processJob(jobId, filePath, action, apiKey, transcriptorModel, summaryModel);
 });
 
 /**
@@ -191,21 +197,21 @@ app.post('/api/transcribe', upload.single('audio'), (req, res) => {
  * - Updates the global `jobs` object with the job status and result.
  * - Deletes the temporary audio file from the `uploads/` directory.
  */
-async function processJob(jobId: string, filePath: string, action: string, apiKey: string) {
+async function processJob(jobId: string, filePath: string, action: string, apiKey: string, transcriptorModel: string, summaryModel: string) {
   try {
     const openai = new OpenAI({ apiKey });
 
     console.log(`[${jobId}] Transcribing with OpenAI API...`);
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(filePath),
-      model: 'whisper-1',
+      model: transcriptorModel,
       language: 'es',
     });
     const cleanTranscription = transcription.text;
     console.log(`[${jobId}] Transcription successful.`);
 
     if (action === 'summarize_short' || action === 'summarize_long') {
-      const summary = await generateSummary(cleanTranscription, action, openai);
+      const summary = await generateSummary(cleanTranscription, action, openai, summaryModel);
       jobs[jobId] = {
         status: 'completed',
         data: {
@@ -250,6 +256,7 @@ async function generateSummary(
   transcription: string,
   action: 'summarize_short' | 'summarize_long',
   openai: OpenAI,
+  summaryModel: string,
 ): Promise<string> {
   const prompts = {
     summarize_short:
@@ -259,7 +266,7 @@ async function generateSummary(
   };
 
   const systemPrompt = prompts[action];
-  const model = 'gpt-5-nano-2025-08-07';
+  const model = summaryModel;
 
   try {
     const response = await openai.chat.completions.create({

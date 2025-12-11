@@ -19,11 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiSettingsForm = document.getElementById('apiSettingsForm');
     /** @type {HTMLInputElement} */
     const openAiApiKeyInput = document.getElementById('openAiApiKey');
+    /** @type {HTMLInputElement} */
+    const transcriptorModelInput = document.getElementById('transcriptorModel');
+    /** @type {HTMLInputElement} */
+    const llmResumidorInput = document.getElementById('model');
     /** @type {HTMLDivElement} */
     const feedbackDiv = document.getElementById('feedback');
     /** @type {HTMLButtonElement} */
     const toggleOpenAiApiKey = document.getElementById('toggleOpenAiApiKey');
-
     /**
      * Displays a feedback message to the user with appropriate styling.
      * 
@@ -107,6 +110,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Sanitize the input
         const openAiKey = sanitizeApiKey(openAiApiKeyInput.value);
+        const transcriptorModel = transcriptorModelInput.value.trim();
+        const summaryModel = llmResumidorInput.value.trim();
+
+        // Add console.log to show the values of the inputs
+        console.log('Transcriptor Model:', transcriptorModel);
+        console.log('LLM Resumidor:', summaryModel);
 
         // Validate the API key format
         const validation = validateApiKey(openAiKey);
@@ -124,8 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Validation passed - save the sanitized key to localStorage
+        // Validation passed - save the sanitized key and models to localStorage
         localStorage.setItem('openAiApiKey', openAiKey);
+        localStorage.setItem('transcriptorModel', transcriptorModel);
+        localStorage.setItem('llmResumidor', summaryModel);
 
         // Show success message
         showFeedback('Settings saved successfully!', 'success');

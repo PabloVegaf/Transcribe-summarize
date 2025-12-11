@@ -25,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
   /** @type {HTMLDivElement} */
   const responseDiv = document.getElementById('response');
 
+  console.log('Cargado de localStorage - Modelo Transcriptor:', localStorage.getItem('transcriptorModel'));
+  console.log('Cargado de localStorage - LLM Resumidor:', localStorage.getItem('llmResumidor'));
+
   /**
    * Validates if a file is actually an audio file based on its MIME type and extension.
    * {@param {File} file - The file to validate.
@@ -169,6 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const url = new URL('https://transcribe-summarize.onrender.com/api/transcribe');
+      // Get models from query parameters or use defaults
+      const transcriptorModel = localStorage.getItem('transcriptorModel') || 'gpt-4o-mini-transcribe';
+      const summaryModel = localStorage.getItem('summaryModel') || 'gpt-5-nano-2025-08-07';
+      url.searchParams.set('transcriptorModel', transcriptorModel);
+      url.searchParams.set('summaryModel', summaryModel);
       url.searchParams.set('action', action);
 
       const res = await fetch(url, {
