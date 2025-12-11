@@ -172,6 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const url = new URL('https://transcribe-summarize.onrender.com/api/transcribe');
+      // Get models from query parameters or use defaults
+      const transcriptorModel = localStorage.getItem('transcriptorModel') || 'gpt-4o-mini-transcribe';
+      const summaryModel = localStorage.getItem('summaryModel') || 'gpt-5-nano-2025-08-07';
+      url.searchParams.set('transcriptorModel', transcriptorModel);
+      url.searchParams.set('summaryModel', summaryModel);
       url.searchParams.set('action', action);
 
       const res = await fetch(url, {

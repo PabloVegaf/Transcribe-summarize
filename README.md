@@ -4,11 +4,11 @@
 
 # 🎙️ Transcribe & Summarize — Personal Practice Project
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![Status](https://img.shields.io/badge/status-learning%20project-purple.svg)
 
-_A project I built to practice full-stack development while exploring the OpenAI API. The app lets you upload an audio file, transcribe it remotely with Whisper, and generate short or long-form summaries with GPT models._
+_A project I built to practice full-stack development while exploring the OpenAI API. The app lets you upload an audio file, transcribe it remotely and generate short or long-form summaries using GPT models. Users can now select their preferred models for transcription and summarization._
 
 ## Table of Contents
 
@@ -31,13 +31,13 @@ _A project I built to practice full-stack development while exploring the OpenAI
 
 This repository hosts a small web application I built as a full-stack practice project: it uploads audio, transcribes it via OpenAI Whisper, and produces short or long summaries with GPT models.
 
-
 Everything runs locally except for the OpenAI API calls, which require your own API key.
 
 ## Features
 
-- **Remote transcription** using OpenAI Whisper (`whisper-1`)
-- **Short and long summaries** powered by GPT (`gpt-5-nano-2025-08-07`)
+- **Remote transcription** using OpenAI Whisper (user-selectable: `GPT-4o Transcribe (Better results)` or `GPT-4o-mini Transcribe (Faster and cheaper)`)
+- **Short and long summaries** powered by GPT (user-selectable: `GPT-5.1 (Better results)` or `GPT5-nano (Faster and cheaper)`)
+- **Model selection** via settings page for customization of transcription and summarization models
 - **Clean, responsive UI** built with pure HTML, vanilla JS, and Tailwind via CDN
 - **Asynchronous processing** with job IDs and client-side polling
 - **Local API key management** through a dedicated settings page (stored only in `localStorage`)
@@ -48,7 +48,7 @@ Everything runs locally except for the OpenAI API calls, which require your own 
 | Layer            | Responsibility                                              | Key Files                                    |
 |------------------|--------------------------------------------------------------|----------------------------------------------|
 | Frontend (UI)    | File upload, progress feedback, displaying results           | `index.html`, `scripts/action.js`, `styles/` |
-| Config UI        | Capture and persist the user’s OpenAI API key                | `settings.html`, `scripts/settings.js`       |
+| Config UI        | Capture and persist the user's OpenAI API key and model preferences | `settings.html`, `scripts/settings.js`       |
 | Backend (API)    | Receive uploads, call OpenAI APIs, track job status          | `backend/src/index.ts`                       |
 | Temp Storage     | Store uploaded audio and in-memory job metadata              | System's temp directory (e.g., `/tmp/uploads`), in-memory `jobs` store   |
 
@@ -93,8 +93,11 @@ The backend will launch on `http://localhost:3000` and serve the frontend automa
 ## Configuring the OpenAI API Key
 
 1. Open `http://localhost:3000/settings.html` in your browser.
-2. Paste your OpenAI API key into the form and click **Save Settings**.
-3. The key is saved to `localStorage` and injected into each request as a Bearer token.
+2. Paste your OpenAI API key into the form.
+3. Select your preferred transcription model.
+4. Select your preferred summarization model.
+5. Click **Save Settings**.
+6. The key and model preferences are saved to `localStorage` and injected into each request as a Bearer token.
 
 ➡️ _The key never touches the repository or disk—only your browser and the outgoing HTTPS requests._
 
@@ -103,11 +106,11 @@ The backend will launch on `http://localhost:3000` and serve the frontend automa
 1. Navigate to `http://localhost:3000`.
 2. Drop an audio file or choose one with **Select File** (mp3, wav, m4a…)
 3. Choose an action:
-  - **Simple transcription** — returns raw text
-  - **Short Summary** — one-paragraph overview
-  - **Long Summary** — multi-paragraph explanation
-  - **You can customize the system prompt to adjust tone, language and level of detail for summaries.**
-    - Prompts for `short` and `long` can be modified in `backend/src/index.ts` (constant `prompts`).
+   - **Simple transcription** — returns raw text
+   - **Short Summary** — one-paragraph simple overview
+   - **Long Summary** — extended explanation
+   - **You can customize the system prompt to adjust tone, language and level of detail for summaries.**
+     - Prompts for `short` and `long` can be modified in `backend/src/index.ts` (constant `prompts`).
 4. The UI polls the status endpoint every 2 seconds and replaces the message with the final result or an error.
 
 ## API Reference
@@ -121,14 +124,14 @@ Creates a new job for transcription or summarization.
 | Element          | Details                                                                    |
 |------------------|----------------------------------------------------------------------------|
 | Headers          | `Authorization: Bearer YOUR_OPENAI_API_KEY`                                |
-| Query parameters | `action=transcribe | summarize_short | summarize_long` (defaults to plain) |
+| Query parameters | `action=transcribe | summarize_short | summarize_long` (defaults to plain)<br>`transcriptorModel=gpt-4o-mini-transcribe | gpt-4o-transcribe` (defaults to `gpt-4o-mini-transcribe`)<br>`summaryModel=gpt-5-nano-2025-08-07 | gpt-5.1-2025-11-13` (defaults to `gpt-5-nano-2025-08-07`) |
 | Body             | `multipart/form-data` with an `audio` file field                           |
 | Success          | `202 Accepted` with `{ "jobId": "<uuid>" }`                              |
 
 Example cURL:
 
 ```bash
-curl -X POST "http://localhost:3000/api/transcribe?action=summarize_short" \
+curl -X POST "http://localhost:3000/api/transcribe?action=summarize_short&transcriptorModel=whisper-large-v3&summaryModel=gpt-4o" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -F "audio=@sample.mp3"
 ```
@@ -164,14 +167,16 @@ Transcribe-summarize/
 │   └── tsconfig.json
 ├── frontend/
 │   ├── index.html            # Main UI
-│   ├── settings.html         # API key management page
+│   ├── settings.html         # API key and model management page
 │   ├── scripts/
 │   │   ├── action.js         # Frontend logic for uploads & polling
-│   │   └── settings.js       # Settings page logic for API key
+│   │   ├── settings.js       # Settings page logic for API key and models
+│   │   └── validators.js     # API key validation
 │   └── styles/
 │       └── styles.css        # Minimal custom styles
 ├── .gitignore
 ├── package-lock.json
+├── AGENTS.md                 # Commands for linting, type-checking, etc.
 └── README.md
 ```
 
@@ -189,7 +194,6 @@ Temporary assets (`backend/uploads/`), build artifacts, and private notes are ex
 ## Potential next steps
 
 - Add database-backed job history and retry support.
-- Model selector (may affect API cost)
 - Offer downloadable transcripts in TXT/JSON formats.
 - Build a dark mode and multi-language UI.
 
@@ -203,6 +207,7 @@ Temporary assets (`backend/uploads/`), build artifacts, and private notes are ex
 | No result after upload                                      | Check server logs, confirm the audio format is supported, keep files < ~25 MB.    |
 | CORS error in browser console                               | Access the UI via `http://localhost:3000`; headers already allow `Authorization`. |
 | `Error: ENOENT: no such file or directory, open 'uploads/...'` | The `uploads` directory for temporary files was not found. The backend now creates this directory automatically on startup, so this error should be resolved. If it persists, check the file system permissions. |
+| Dashboard shows "whisper" instead of selected model         | Ensure models are sent correctly; invalid models default to `whisper-1`. Check settings and API calls. |
 
 ## Contributing
 
@@ -219,4 +224,6 @@ git push origin feature/awesome-improvement
 
 **Pablo Vega** — Full-stack enthusiast experimenting with AI-assisted tooling. This repository documents my progress and learnings; feedback is welcome!
 
----
+---</content>
+</xai:function_call name="write">
+<parameter name="filePath">AGENTS.md

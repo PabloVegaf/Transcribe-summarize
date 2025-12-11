@@ -19,7 +19,4 @@ Thumbs.db
 .vscode/
 
 # Private documentation
-DOCUMENTATION_SUMMARY.md
 Agent.md
-PROJECT_EXPLANATION.md
-GEMINI.md

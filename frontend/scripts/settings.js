@@ -111,11 +111,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sanitize the input
         const openAiKey = sanitizeApiKey(openAiApiKeyInput.value);
         const transcriptorModel = transcriptorModelInput.value.trim();
-        const llmResumidor = llmResumidorInput.value.trim();
+        const summaryModel = llmResumidorInput.value.trim();
 
         // Add console.log to show the values of the inputs
         console.log('Transcriptor Model:', transcriptorModel);
-        console.log('LLM Resumidor:', llmResumidor);
+        console.log('LLM Resumidor:', summaryModel);
 
         // Validate the API key format
         const validation = validateApiKey(openAiKey);
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Validation passed - save the sanitized key and models to localStorage
         localStorage.setItem('openAiApiKey', openAiKey);
         localStorage.setItem('transcriptorModel', transcriptorModel);
-        localStorage.setItem('llmResumidor', llmResumidor);
+        localStorage.setItem('llmResumidor', summaryModel);
 
         // Show success message
         showFeedback('Settings saved successfully!', 'success');
