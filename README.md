@@ -35,8 +35,8 @@ Everything runs locally except for the OpenAI API calls, which require your own 
 
 ## Features
 
-- **Remote transcription** using OpenAI Whisper (user-selectable: `GPT-4o Transcribe (Better results)` or `GPT-4o-mini Transcribe (Faster and cheaper)`)
-- **Short and long summaries** powered by GPT (user-selectable: `GPT-5.1 (Better results)` or `GPT5-nano (Faster and cheaper)`)
+- **Remote transcription** using OpenAI Whisper (user-selectable: `gpt-4o-transcribe` (Better results) or `gpt-4o-mini-transcribe` (Faster and cheaper))
+- **Short and long summaries** powered by GPT (user-selectable: `gpt-5.1-2025-11-13` (Better results) or `gpt-5-nano-2025-08-07` (Faster and cheaper))
 - **Model selection** via settings page for customization of transcription and summarization models
 - **Clean, responsive UI** built with pure HTML, vanilla JS, and Tailwind via CDN
 - **Asynchronous processing** with job IDs and client-side polling
@@ -124,14 +124,14 @@ Creates a new job for transcription or summarization.
 | Element          | Details                                                                    |
 |------------------|----------------------------------------------------------------------------|
 | Headers          | `Authorization: Bearer YOUR_OPENAI_API_KEY`                                |
-| Query parameters | `action=transcribe | summarize_short | summarize_long` (defaults to plain)<br>`transcriptorModel=gpt-4o-mini-transcribe | gpt-4o-transcribe` (defaults to `gpt-4o-mini-transcribe`)<br>`summaryModel=gpt-5-nano-2025-08-07 | gpt-5.1-2025-11-13` (defaults to `gpt-5-nano-2025-08-07`) |
+| Query parameters | `action=transcribe | summarize_short | summarize_long` (defaults to `transcribe`)<br>`transcriptorModel=gpt-4o-transcribe | gpt-4o-mini-transcribe` (defaults to `gpt-4o-mini-transcribe`)<br>`summaryModel=gpt-5.1-2025-11-13 | gpt-5-nano-2025-08-07` (defaults to `gpt-5-nano-2025-08-07`) |
 | Body             | `multipart/form-data` with an `audio` file field                           |
 | Success          | `202 Accepted` with `{ "jobId": "<uuid>" }`                              |
 
 Example cURL:
 
 ```bash
-curl -X POST "http://localhost:3000/api/transcribe?action=summarize_short&transcriptorModel=whisper-large-v3&summaryModel=gpt-4o" \
+curl -X POST "http://localhost:3000/api/transcribe?action=summarize_short&transcriptorModel=gpt-4o-transcribe&summaryModel=gpt-5.1-2025-11-13" \
   -H "Authorization: Bearer $OPENAI_API_KEY" \
   -F "audio=@sample.mp3"
 ```
@@ -168,6 +168,7 @@ Transcribe-summarize/
 ├── frontend/
 │   ├── index.html            # Main UI
 │   ├── settings.html         # API key and model management page
+│   ├── Images/               # Logo and favicon
 │   ├── scripts/
 │   │   ├── action.js         # Frontend logic for uploads & polling
 │   │   ├── settings.js       # Settings page logic for API key and models
@@ -176,7 +177,6 @@ Transcribe-summarize/
 │       └── styles.css        # Minimal custom styles
 ├── .gitignore
 ├── package-lock.json
-├── AGENTS.md                 # Commands for linting, type-checking, etc.
 └── README.md
 ```
 
@@ -207,7 +207,7 @@ Temporary assets (`backend/uploads/`), build artifacts, and private notes are ex
 | No result after upload                                      | Check server logs, confirm the audio format is supported, keep files < ~25 MB.    |
 | CORS error in browser console                               | Access the UI via `http://localhost:3000`; headers already allow `Authorization`. |
 | `Error: ENOENT: no such file or directory, open 'uploads/...'` | The `uploads` directory for temporary files was not found. The backend now creates this directory automatically on startup, so this error should be resolved. If it persists, check the file system permissions. |
-| Dashboard shows "whisper" instead of selected model         | Ensure models are sent correctly; invalid models default to `whisper-1`. Check settings and API calls. |
+| Dashboard shows unexpected model name                       | Ensure models are sent correctly; invalid models may use defaults (`gpt-4o-mini-transcribe` for transcription, `gpt-5-nano-2025-08-07` for summarization). Check settings and API calls. |
 
 ## Contributing
 
